@@ -1,0 +1,411 @@
+# Module Sites2 - en_US
+# Copyright (C) 2023-2024 D.A.R.Y.L.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+#
+# Module
+#
+ModuleSites2Name = Customer Sites
+ModuleSites2Desc = Management of customer sites with distance calculation
+
+#
+# Labels
+#
+Sites2Area = Customer Sites
+NewSite = New site
+Site = Site
+Sites = Sites
+List_Site = Sites list
+NewObject = New site
+ListOfSites = List of sites
+ListOfSitesWithoutCoordinates = List of sites without coordinates
+SiteCard = Site card
+ConfirmDeleteSite = Are you sure you want to delete this site?
+NoSiteFound = No site found
+DistanceFromHQ = Distance from headquarters
+TravelTimeFromHQ = Travel time from headquarters
+NoThirdPartyAssociatedToSite = No third party associated with this site
+ErrorThisContactDoesNotBelongToLinkedThirdParty = This contact does not belong to the third party linked to this site
+OpenInMaps = Open in external map
+AdjustPosition = Adjust position
+SiteDetails = Site details
+SearchSite = Search for a site
+NotCalculated = Not calculated
+NotAvailable = Not available
+UpdateData = Update data
+AddAddressCoordinates = Add coordinates
+RecalculateDistances = Recalculate distances
+SitesMap = Sites map
+ViewSiteMap = View sites map
+SitesWithCoordinates = Sites with coordinates
+SitesWithoutCoordinates = Sites without coordinates
+SitesInElectricRange = Sites within electric range
+Statistics = Statistics
+ViewSite = View site
+ConfigureHere = Configure here
+NotConfigured = Not configured
+ViewSitesWithoutCoordinates = View list of sites without coordinates
+
+#
+# Status
+#
+SiteStatusDraft = Draft (to validate)
+SiteStatusValidated = Validated (active)
+SiteStatusClosed = Closed (inactive)
+SiteStatusDraftShort = Draft
+SiteStatusValidatedShort = Validated
+SiteStatusClosedShort = Closed
+
+#
+# List page
+#
+AllSites = All sites
+SitesByThirdparty = Sites by third party
+SitesByStatus = Sites by status
+NoSitesYet = No site has been created yet
+
+#
+# Admin pages
+#
+Sites2Setup = Customer Sites module configuration
+Sites2SetupPage = Customer Sites module configuration page
+Settings = Settings
+SITES2_MYPARAM1 = Parameter 1
+SITES2_MYPARAM1Tooltip = Description of parameter 1
+SITES2_MYPARAM2 = Parameter 2
+SITES2_MYPARAM2Tooltip = Description of parameter 2
+SITES2_MAP_PROVIDER = Map provider
+SITES2_MAP_PROVIDERTooltip = Choose the map provider to use for displaying sites
+SITES2_GOOGLE_MAPS_API_KEY = Google Maps API key
+SITES2_GOOGLE_MAPS_API_KEYTooltip = Google Maps API key for displaying maps (necessary if you use Google Maps)
+SITES2_OPENSTREETMAP_API_KEY = OpenStreetMap API key
+SITES2_OPENSTREETMAP_API_KEYTooltip = OpenStreetMap API key for geocoding addresses (optional, but recommended to avoid request limitations)
+
+# Reference Agency
+ReferenceAgency = Reference agency
+ReferenceAgencySetup = Reference agency configuration
+ReferenceAgencyDescription = Reference agency configuration for distance and travel time calculation
+SITES2_USE_REFERENCE_AGENCY = Use reference agency instead of headquarters
+SITES2_USE_REFERENCE_AGENCYTooltip = If enabled, distances and travel times will be calculated relative to the reference agency defined below, otherwise they will be calculated relative to the headquarters of the associated third party
+SITES2_REFERENCE_AGENCY_NAME = Reference agency name
+SITES2_REFERENCE_AGENCY_NAMETooltip = Name of the agency that will serve as a reference point for distance calculation
+SITES2_REFERENCE_AGENCY_ADDRESS = Reference agency address
+SITES2_REFERENCE_AGENCY_ADDRESSTooltip = Complete postal address of the reference agency
+SITES2_REFERENCE_AGENCY_ZIP = Reference agency zip code
+SITES2_REFERENCE_AGENCY_ZIPTooltip = Zip code of the reference agency
+SITES2_REFERENCE_AGENCY_TOWN = Reference agency city
+SITES2_REFERENCE_AGENCY_TOWNTooltip = City of the reference agency
+SITES2_REFERENCE_AGENCY_COUNTRY = Reference agency country
+SITES2_REFERENCE_AGENCY_COUNTRYTooltip = Country of the reference agency
+SITES2_REFERENCE_AGENCY_LATITUDE = Reference agency latitude
+SITES2_REFERENCE_AGENCY_LATITUDETooltip = Latitude of the reference agency (will be calculated automatically if not specified)
+SITES2_REFERENCE_AGENCY_LONGITUDE = Reference agency longitude
+SITES2_REFERENCE_AGENCY_LONGITUDETooltip = Longitude of the reference agency (will be calculated automatically if not specified)
+GeocodeReferenceAgency = Geocode reference agency address
+ReferenceAgencyGeocoded = The reference agency address has been successfully geocoded
+ReferenceAgencyGeocodeError = Error geocoding the reference agency address
+ReferenceAgencyGeocodeErrorMissingFields = Error during geocoding: missing required fields
+ReferenceAgencyGeocodeErrorConnection = Error connecting to the %s API. Check your internet connection and API settings.
+ReferenceAgencyGeocodeErrorNoResults = No results found for the address: %s %s %s %s. Check the spelling or try a more precise address.
+GeocodeUsingCurrentValues = The current values of the address fields above will be used for geocoding. Make sure they are correct before clicking the button.
+DistanceFromReferenceAgency = Distance from reference agency
+TravelTimeFromReferenceAgency = Travel time from reference agency
+UseReferenceAgency = Use reference agency for distance calculation
+UseReferenceAgencyTooltip = If enabled, distances and travel times will be calculated relative to the reference agency, otherwise they will be calculated relative to the headquarters of the associated third party
+
+# Additional map configuration
+MapConfiguration = Map Configuration
+SITES2_EXTERNAL_MAP_APP = External map application to use
+SITES2_EXTERNAL_MAP_APPTooltip = Choose the application to launch when you click on "Open in external map". On mobile, the default option will use the preferred mapping application of the device.
+DefaultDeviceApp = Default device application
+OpenWithExternalApp = Open with %s
+
+# Documentation on map applications
+ExternalMapAppsInfo = Information on external map applications
+ExternalMapAppsInfoDesc = Here's how the different options behave depending on the platforms and devices used.
+DefaultAppExplanation = On Android, opens the default map application of the device. On iOS, opens Apple Maps. On desktop computers, opens Google Maps in the web browser.
+GoogleMapsExplanation = Opens Google Maps in the web browser. On mobile, can also launch the Google Maps app if installed.
+OpenStreetMapExplanation = Opens OpenStreetMap in the web browser.
+WazeExplanation = Opens the Waze app if it's installed on the device, otherwise opens Waze in the web browser.
+AppleMapsExplanation = Opens Apple Maps on iOS devices. On other platforms, opens Apple Maps in the web browser (limited functionality).
+BingMapsExplanation = Opens Bing Maps in the web browser.
+
+Sites2About = About
+Sites2Description = Customer sites management module allowing you to manage different addresses of third parties.
+Sites2Features = Main features:
+Sites2Feature1 = Site management with geolocation
+Sites2Feature2 = Automatic calculation of distances and travel times
+Sites2Feature3 = Association of contacts to sites
+
+#
+# Import page
+#
+Sites2Import = Site import
+FileToImport = File to import
+CSVFormatDescription = CSV format with semicolon separator
+CSVFieldsDescription = Field description
+CSVFieldsList = %s
+ImportDone = Import successful. %s sites have been imported.
+ImportError = Error during import: %s
+ErrorWrongFileFormat = Incorrect file format. Please use a CSV file.
+NotEnoughColumns = Not enough columns on line %s
+EmptyLabel = Missing site name on line %s
+CreateError = Error creating site on line %s: %s
+CantOpenFile = Cannot open file
+ErrorProcessingFile = Error processing CSV file. Check the format and encoding of the file.
+SampleCSVFile = Sample CSV file
+DownloadSampleCSVFile = Download a sample CSV file
+ImportCSVFieldsHelp = Detailed description of the import CSV file fields
+ImportFieldLabel = <strong>label</strong>: Site name (required)
+ImportFieldRef = <strong>ref</strong>: Site reference (if empty, the site name will be used)
+ImportFieldAddress = <strong>address</strong>: Site address
+ImportFieldZip = <strong>zip</strong>: Zip code
+ImportFieldTown = <strong>town</strong>: City
+ImportFieldPhone = <strong>phone</strong>: Phone number
+ImportFieldStatus = <strong>status</strong>: Site status (0=Draft, 1=Validated, 9=Closed)
+ImportFieldLatitude = <strong>latitude</strong>: Latitude (geographic coordinate)
+ImportFieldLongitude = <strong>longitude</strong>: Longitude (geographic coordinate)
+ImportFieldFkSoc = <strong>fk_soc</strong>: ID of the third party linked to the site
+ImportFieldDescription = <strong>description</strong>: Detailed description of the site
+ImportFieldDistanceKm = <strong>distance_km</strong>: Distance in kilometers from the reference point
+ImportFieldTravelTime = <strong>travel_time</strong>: Travel time from the reference point (format "HH:MM")
+ImportFieldType = <strong>type</strong>: Site type (1=Professional, 9=Individual)
+ImportAutomaticCalculation = Geographic coordinates, distances and travel times will be calculated automatically when possible if they are not provided.
+Options = Options
+SkipDistanceCalculation = Do not automatically calculate distances (recommended for large imports)
+SkipDistanceCalculationHelp = Distance calculation can be very slow when importing many sites. You can launch the calculation later from the administration.
+
+# New translations
+DistanceAndTravelTimeCalculatedAutomatically = Distances and travel times are calculated automatically from the site coordinates and headquarters/reference agency.
+DistanceAndTravelTimeUpdated = Distances and travel times have been successfully updated.
+
+# Error messages for distance calculation
+CalculationError = Error calculating distance and travel time. Check that the site and reference point coordinates are correct.
+NoCoordinatesAvailable = No coordinates available for this site. Please add latitude and longitude first.
+NoReferenceCoordinates = Unable to calculate distance because the reference point coordinates (headquarters or reference agency) are missing.
+DistanceCalculation = Distance calculation
+RecalculateAllDistances = Recalculate all distances
+RecalculateAllDistancesDescription = Click on this button to recalculate distances and travel times for all sites with valid coordinates. This action will use the coordinates of the reference agency as a starting point.
+DistancesRecalculatedSuccessfully = %s sites have been successfully updated with new distances.
+ErrorsRecalculatingDistances = Errors occurred for %s sites when recalculating distances.
+NoSitesToUpdate = No sites to update (no sites with valid coordinates).
+GeocodeReferenceAgencyDescription = Click on this button to automatically get the geographic coordinates (latitude and longitude) of the reference agency from its address.
+
+# Translations for manual position adjustment
+AdjustPositionManually = Adjust position manually
+AdjustSitePosition = Adjust site position
+PositionAdjustmentInstructions = Position adjustment instructions
+DragMarkerToAdjustPosition = Drag the red marker on the map to adjust the exact position of the site.
+SaveNewPosition = Save new position
+CurrentCoordinates = Current coordinates
+NewCoordinates = New coordinates
+PositionUpdatedSuccessfully = Position successfully updated
+NoCoordinatesProvided = No coordinates provided
+ErrorFetchingSite = Error loading site
+
+# Adding translations for the new distance calculation parameter
+SITES2_DISTANCE_CALCULATION_MODE = Distance calculation mode
+SITES2_DISTANCE_CALCULATION_MODETooltip = Choose how to calculate distances between sites and the reference point
+DistanceCalculationRoute = Actual route distance (uses an online API)
+DistanceCalculationHaversine = As-the-crow-flies distance (local calculation)
+
+# Export
+ExportSites = Export sites
+ExportSitesList = Export sites list
+ExportSitesCSV = Export to CSV
+ExportSitesExcel = Export to Excel
+ExportSitesDescription = This page allows you to export customer site data in CSV or Excel format. The export includes all basic site information, including addresses, coordinates, distances and travel times.
+ExportFormat = Export format
+CSV = CSV (semicolon separator)
+Excel = Excel (UTF-8 CSV)
+Parameter = Parameter
+Value = Value
+Id = ID
+Ref = Reference
+Label = Label
+Description = Description
+Address = Address
+Zip = Zip code
+Town = City
+Phone = Phone
+Status = Status
+Latitude = Latitude
+Longitude = Longitude
+Distance = Distance
+DistanceKm = Distance (km)
+TravelTime = Travel time
+ThirdPartyId = Third party ID
+ThirdPartyName = Third party name
+DateCreation = Creation date
+DateModification = Modification date
+CreatedBy = Created by
+
+# Global search
+SiteRef = Site
+SearchResultsIntoSites = Results in customer sites
+QuickSearch = Quick search
+
+# Distance types
+StraightLineDistance = As the crow flies
+RoadDistance = By road
+
+# Action buttons
+RecalculateDistance = Recalculate distance
+Intervention = Intervention
+NewIntervention = Intervention
+
+# Mass actions
+SetStatus = Set status
+ConfirmMassStatusChange = Confirmation of mass status change
+ConfirmMassStatusChangeQuestion = Are you sure you want to change the status of the %s selected items?
+StatusChangedForNSites = Status changed for %s sites
+ConfirmMassDeletion = Confirmation of mass deletion
+ConfirmMassDeletionQuestion = Are you sure you want to delete the %s selected items?
+NSitesDeleted = %s sites deleted
+
+# Site tabs
+NotesOnSite = Notes (not available)
+DocumentsOnSite = Documents (not available)
+EventsOnSite = Events (not available)
+Notes = Notes (not available)
+Documents = Documents (not available)
+Events = Events (not available)
+AddNote = Add a note (not available)
+ModifyNote = Modify note (not available)
+SaveNote = Save note (not available)
+AddAction = Add an event (not available)
+
+# Error and access messages
+NotEnoughPermissions = Insufficient access rights
+AccessDenied = Access denied
+ModuleNotEnabled = Module %s is not enabled
+
+# Messages related to deletion
+DeleteSite = Delete site
+ConfirmDeleteObject = Are you sure you want to delete this site?
+SiteDeleted = Site successfully deleted
+ErrorDeletingSite = Error deleting site
+CannotDeleteSiteWithElements = Cannot delete this site because it contains linked elements (documents, events, etc.)
+
+# Technical errors
+MissingExtrafieldsTable = The additional fields table does not exist. This can be resolved by disabling and then re-enabling the module.
+ContactModuleAdmin = Contact the module administrator for more information.
+
+# Contact roles
+ContactTypeSites2 = Contact types for sites
+ContactRoles = Contact roles
+ContactRolesSetup = Contact roles configuration
+ContactRolesDescription = Configure here the different roles that you can assign to contacts linked to your sites. These roles will allow you to easily identify people to contact according to their function for each site.
+AddContactRole = Add a role
+EditContactRole = Edit a role
+ModifyContactRole = Modify a role
+NewContactRole = New role
+NoRolesDefined = No roles defined
+NoContactRolesDefined = No contact roles defined for sites
+ConfigureContactRolesFirst = To associate contacts with sites, you must first <a href="%s">configure contact roles</a> via the administration menu.
+RoleAdded = Role successfully added
+RoleUpdated = Role successfully updated
+RoleDeleted = Role successfully deleted
+ErrorCodeAlreadyExists = This code already exists
+ErrorRoleInUse = This role is in use and cannot be deleted
+
+# Contacts
+NoContactForCompany = No contacts available for this third party
+NoContactRolesDefinedForSites = No contact roles defined for sites
+AddContact = Add a contact
+DeleteContact = Delete contact
+NoContacts = No associated contacts
+ContactAdded = Contact successfully added
+ContactDeleted = Contact successfully deleted
+ContactUpdated = Contact successfully updated
+SelectContact = Select a contact
+ContactType = Contact type
+ErrorContactAlreadyExists = This contact is already associated with this site with this role
+ErrorBadValueForContactId = Please select a contact
+ErrorBadValueForContactType = Please select a contact type
+ContactSource = Contact source
+LinkedThirdPartyOnly = Linked third party contacts only
+AllThirdParties = Contacts from all third parties
+NoContactFound = No contact found
+
+# Contact interface
+ContactSummary = Contact summary
+SeeAllContacts = See all contacts (%s)
+ManageContacts = Manage contacts
+ErrorFetchingContacts = Error retrieving contacts
+
+# Performance optimization
+PerformanceOptimization = Performance optimization
+PerformanceOptimizationDescription = This page allows you to optimize the performance of the Sites2 module by updating database indexes and optimizing tables.
+IndexOptimization = Index optimization
+UpdateDatabaseIndexes = Update database indexes
+UpdateDatabaseIndexesDescription = Adds or updates indexes on frequently used columns to improve query performance.
+OptimizeTable = Optimize table
+OptimizeTableDescription = Runs an OPTIMIZE TABLE command on the sites table to improve overall performance.
+IndexesUpdated = Indexes successfully updated
+ErrorUpdatingIndexes = Error updating indexes
+TableOptimized = Table successfully optimized
+ErrorOptimizingTable = Error optimizing table
+UpdateIndexes = Update indexes
+OptimizeTable = Optimize table
+
+# Setup and Configuration
+Module641444Name = Sites2
+Module641444Desc = Customer/Prospect Sites Management Module
+SetupPageTitle = Sites2 Module Configuration
+SITES2_MAP_PROVIDER = Map Provider
+SITES2_MAP_PROVIDERTooltip = Choose the map service to use for displaying sites
+SITES2_GOOGLE_MAPS_API_KEY = Google Maps API Key
+SITES2_GOOGLE_MAPS_API_KEYTooltip = API key required to use Google Maps
+SITES2_OPENSTREETMAP_API_KEY = OpenStreetMap API Key
+SITES2_OPENSTREETMAP_API_KEYTooltip = Optional API key for OpenStreetMap (improves performance)
+SITES2_EXTERNAL_MAP_APP = External Map Application
+SITES2_EXTERNAL_MAP_APPTooltip = Choose the application to open when clicking on route links
+SITES2_DISTANCE_CALCULATION_MODE = Distance Calculation Mode
+SITES2_DISTANCE_CALCULATION_MODETooltip = Choose between route distance calculation or straight-line distance
+SITES2_ELECTRIC_FLEET_ENABLED = Enable Electric Vehicle Fleet
+SITES2_ELECTRIC_FLEET_ENABLEDTooltip = Enables differentiated display of sites according to electric vehicle range
+SITES2_ELECTRIC_FLEET_AUTONOMY = Average Electric Vehicle Range (km)
+SITES2_ELECTRIC_FLEET_AUTONOMYTooltip = Average range of your electric vehicles in kilometers (used to calculate round trip)
+ElectricFleetRequiresReferenceAgency = Electric fleet functionality requires a reference agency to be configured.
+ConfigureReferenceAgency = Configure reference agency
+
+# Statistics and Info
+Statistics = Statistics
+SitesWithCoordinates = Sites with coordinates
+SitesWithoutCoordinates = Sites without coordinates
+SitesInElectricRange = Sites within electric range
+NotConfigured = Not configured
+ConfigureHere = Configure here
+ElectricRangeOK = Within electric range (round trip possible)
+ElectricRangeKO = Out of electric range
+ElectricFleetLegend = Legend - Electric Fleet
+MaxDistance = Maximum distance
+
+# Configuration
+MapConfiguration = Map Configuration
+ElectricFleetConfiguration = Electric Fleet Configuration
+
+# Weather
+WeatherConfiguration = Weather Configuration
+SITES2_WEATHER_ENABLED = Enable weather display
+SITES2_WEATHER_ENABLEDTooltip = Enables the display of weather forecasts on the site map (today + 5 days)
+SITES2_OPENWEATHERMAP_API_KEY = OpenWeatherMap API Key
+SITES2_OPENWEATHERMAP_API_KEYTooltip = API key required to retrieve weather data from OpenWeatherMap. You can get a free key on openweathermap.org
+GetOpenWeatherMapAPIKey = Get a free API key
+WeatherEnabled = Weather enabled
+WeatherForecast = Weather Forecast
+Today = Today
+Tomorrow = Tomorrow 

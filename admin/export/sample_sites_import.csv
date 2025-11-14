@@ -1,0 +1,6 @@
+label;ref;address;zip;town;phone;status;latitude;longitude;fk_soc;description;distance_km;travel_time;type
+Site Principal;SITE001;1 rue de la Paix;75001;Paris;0123456789;1;48.856614;2.3522219;;Siège social de l'entreprise;0;00:00;1
+Site Secondaire;SITE002;2 avenue des Champs-Élysées;75008;Paris;0123456788;1;48.8697;2.3075;;Boutique principale;3.2;00:10;1
+Entrepôt Lyon;SITE003;10 rue de la République;69001;Lyon;0472000000;0;45.7578;4.8320;;Centre de stockage et logistique;465;04:30;1
+Agence Marseille;SITE004;5 Canebière;13001;Marseille;0491000000;1;43.2965;5.3698;;Bureau commercial sud;775;07:15;1
+Site Résidentiel Client;SITE005;15 allée des Roses;69003;Lyon;0478000000;1;45.7485;4.8570;123;Résidence particulière d'un client VIP;470;04:35;9 
