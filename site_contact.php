@@ -49,10 +49,6 @@ if (!$res && file_exists("../../main.inc.php")) {
 if (!$res && file_exists("../../../main.inc.php")) {
 	$res = @include "../../../main.inc.php";
 }
-// Solution de secours - chemin absolu courant
-if (!$res && file_exists(dirname(dirname(__DIR__))."/main.inc.php")) {
-	$res = @include dirname(dirname(__DIR__))."/main.inc.php";
-}
 if (!$res) {
 	die("Include of main fails");
 }
@@ -95,24 +91,7 @@ if (!function_exists('setEventMessages')) {
     }
 }
 
-// Définir dol_buildpath si elle n'existe pas
-if (!function_exists('dol_buildpath')) {
-    function dol_buildpath($path, $type = 0)
-    {
-        // Si c'est un chemin absolu ou une URL, on retourne tel quel
-        if (preg_match('/^(http|https):\/\//i', $path) || preg_match('/^[\\/\\\\]/', $path)) {
-            return $path;
-        }
-        
-        if ($type == 1) {
-            // Pour type 1, on retourne un chemin relatif depuis la racine web
-            return '/custom/sites2/' . $path;
-        } else {
-            // Pour type 0, on retourne un chemin système
-            return __DIR__ . '/' . $path;
-        }
-    }
-}
+// dol_buildpath est déjà défini par Dolibarr, pas besoin de redéfinir
 
 // Définir dol_include_once si elle n'existe pas
 if (!function_exists('dol_include_once')) {

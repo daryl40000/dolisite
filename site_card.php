@@ -49,10 +49,6 @@ if (!$res && file_exists("../../main.inc.php")) {
 if (!$res && file_exists("../../../main.inc.php")) {
 	$res = @include "../../../main.inc.php";
 }
-// Solution de secours - chemin absolu courant
-if (!$res && file_exists(dirname(dirname(__DIR__))."/main.inc.php")) {
-	$res = @include dirname(dirname(__DIR__))."/main.inc.php";
-}
 if (!$res) {
 	die("Include of main fails");
 }
@@ -97,24 +93,7 @@ if (!function_exists('setEventMessages')) {
     }
 }
 
-// Définir dol_buildpath si elle n'existe pas
-if (!function_exists('dol_buildpath')) {
-    function dol_buildpath($path, $type = 0)
-    {
-        // Si c'est un chemin absolu ou une URL, on retourne tel quel
-        if (preg_match('/^(http|https):\/\//i', $path) || preg_match('/^[\\/\\\\]/', $path)) {
-            return $path;
-        }
-        
-        if ($type == 1) {
-            // Pour type 1, on retourne un chemin relatif depuis la racine web
-            return '/custom/sites2/' . $path;
-        } else {
-            // Pour type 0, on retourne un chemin système
-            return __DIR__ . '/' . $path;
-        }
-    }
-}
+// dol_buildpath est déjà défini par Dolibarr, pas besoin de redéfinir
 
 // Définir dol_include_once si elle n'existe pas
 if (!function_exists('dol_include_once')) {
@@ -856,7 +835,7 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 						print '</div>';
 					}
 				} else {
-					// Pas de date définie : afficher les jours favorables sur 15 jours
+					// Pas de date définie : afficher les jours favorables (8 jours max avec API payante, 5 jours avec API gratuite)
 					// Réutiliser les données météo déjà récupérées si disponibles, sinon faire un nouvel appel
 					if (!empty($weatherData) && !empty($weatherData['forecast'])) {
 						// Utiliser les données déjà récupérées pour éviter les incohérences
@@ -983,8 +962,12 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 			print '<h4 style="margin: 0 0 8px 0; font-size: 0.95em;"><i class="fas fa-cloud-sun"></i> ' . $langs->trans("WeatherForecast") . '</h4>';
 			print '<div style="display: flex; flex-wrap: wrap; gap: 5px;">';
 			
-			// Afficher les 6 premiers jours (aujourd'hui + 5 jours)
-			$daysToShow = array_slice($weatherData['forecast'], 0, 6);
+			// Déterminer le nombre de jours à afficher selon le type d'API
+			$apiType = !empty($conf->global->SITES2_WEATHER_API_TYPE) ? $conf->global->SITES2_WEATHER_API_TYPE : 'free';
+			$daysToDisplay = ($apiType == 'paid') ? 8 : 6; // 8 jours pour API payante, 6 jours pour API gratuite
+			
+			// Afficher les jours selon le type d'API
+			$daysToShow = array_slice($weatherData['forecast'], 0, $daysToDisplay);
 			foreach ($daysToShow as $day) {
 				print '<div style="flex: 1; min-width: 70px; padding: 5px; background-color: white; border-radius: 3px; text-align: center; border: 1px solid #ccc;">';
 				print '<div style="font-weight: bold; font-size: 0.75em; margin-bottom: 3px;">' . htmlspecialchars($day['date_label'], ENT_QUOTES, 'UTF-8') . '</div>';
@@ -1046,7 +1029,6 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 		
 		echo '
 		<script type="text/javascript">
-			console.log("Displaying map");
 			var lat = ' . $object->latitude . ';' . '
 			var lon = '  . $object->longitude . ';' . '
 			var ref = "' . $object->label . '";' . '
@@ -1099,7 +1081,7 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 				if (isPositionEditMode) {
 					// En mode ajustement de position, créer un marqueur déplaçable avec une icône personnalisée
 					var draggableIcon = L.icon({
-						iconUrl: "' . DOL_URL_ROOT . '/custom/sites2/img/draggable_marker.svg",
+						iconUrl: "' . dol_buildpath('/sites2/img/draggable_marker.svg', 1) . '",
 						iconSize: [25, 41],
 						iconAnchor: [12, 41],
 						popupAnchor: [1, -34]
@@ -1157,7 +1139,7 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 				
 				// Créer un marqueur pour l\'agence de référence avec une icône personnalisée
 				var refAgencyIcon = L.icon({
-					iconUrl: "' . DOL_URL_ROOT . '/custom/sites2/img/ref_agency_marker.svg",
+					iconUrl: "' . dol_buildpath('/sites2/img/ref_agency_marker.svg', 1) . '",
 					iconSize: [25, 41],
 					iconAnchor: [12, 41],
 					popupAnchor: [1, -34]

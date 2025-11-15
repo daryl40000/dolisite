@@ -109,7 +109,7 @@ class Sites2SearchForm
                 $this->db->data_seek($resql, 0);
                 
                 while ($obj = $this->db->fetch_object($resql) AND $i < 10) {
-                    $url = DOL_URL_ROOT.'/custom/sites2/site_card.php?id='.$obj->rowid;
+                    $url = dol_buildpath('/sites2/site_card.php', 1).'?id='.$obj->rowid;
                     
                     $status = '';
                     if ($obj->status == 0) {

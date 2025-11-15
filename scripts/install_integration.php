@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 /**
  * Script d'installation de l'intégration entre le module sites2 et le module équipement
@@ -23,22 +24,36 @@ define('NOREQUIREAJAX', '1');
 // Détecter si le script est exécuté en ligne de commande
 $is_cli = (php_sapi_name() == 'cli');
 
-// Trouver le chemin vers main.inc.php
-$path = '';
+// Load Dolibarr environment
 $res = 0;
-
-if (file_exists("../../../main.inc.php")) {
-    $path = "../../../";
-} elseif (file_exists("../../../../main.inc.php")) {
-    $path = "../../../../";
-} elseif (file_exists("../../../../../main.inc.php")) {
-    $path = "../../../../../";
-} else {
-    die("Impossible de trouver le fichier main.inc.php. Assurez-vous d'exécuter ce script depuis le répertoire sites2/scripts/.\n");
+// Try master.inc.php into web root known defined into CONTEXT_DOCUMENT_ROOT (not always defined)
+if (!$res && !empty($_SERVER["CONTEXT_DOCUMENT_ROOT"])) {
+	$res = @include $_SERVER["CONTEXT_DOCUMENT_ROOT"]."/master.inc.php";
 }
-
-// Inclure les fichiers nécessaires
-require_once $path . "main.inc.php";
+// Try master.inc.php into web root detected using web root calculated from SCRIPT_FILENAME
+$tmp = empty($_SERVER['SCRIPT_FILENAME']) ? '' : $_SERVER['SCRIPT_FILENAME']; $tmp2 = realpath(__FILE__); $i = strlen($tmp) - 1; $j = strlen($tmp2) - 1;
+while ($i > 0 && $j > 0 && isset($tmp[$i]) && isset($tmp2[$j]) && $tmp[$i] == $tmp2[$j]) {
+	$i--; $j--;
+}
+if (!$res && $i > 0 && file_exists(substr($tmp, 0, ($i + 1))."/master.inc.php")) {
+	$res = @include substr($tmp, 0, ($i + 1))."/master.inc.php";
+}
+if (!$res && $i > 0 && file_exists(dirname(substr($tmp, 0, ($i + 1)))."/master.inc.php")) {
+	$res = @include dirname(substr($tmp, 0, ($i + 1)))."/master.inc.php";
+}
+// Try master.inc.php using relative path
+if (!$res && file_exists("../master.inc.php")) {
+	$res = @include "../master.inc.php";
+}
+if (!$res && file_exists("../../master.inc.php")) {
+	$res = @include "../../master.inc.php";
+}
+if (!$res && file_exists("../../../master.inc.php")) {
+	$res = @include "../../../master.inc.php";
+}
+if (!$res) {
+	die("Include of master fails");
+}
 
 // Fonction pour afficher un message
 function output($message) {

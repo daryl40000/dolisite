@@ -43,7 +43,8 @@ class modSites2 extends DolibarrModules
 
 		// Id for module (must be unique).
 		// Use here a free id (See in Home -> System information -> Dolibarr for list of used modules id).
-		$this->numero = 500100;
+		// ID reserved for this module
+		$this->numero = 192070;
 		// Key text used to identify module (for permissions, menus, etc...)
 		$this->rights_class = 'sites2';
 
@@ -61,7 +62,7 @@ class modSites2 extends DolibarrModules
 		$this->descriptionlong = "Module pour gérer les sites clients des tiers avec calcul des distances";
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated' or a version string like 'x.y.z'
-		$this->version = '2.3.1';
+		$this->version = '2.3.2';
 
 		// Key used in llx_const table to save module status enabled/disabled (where SITES2 is value of property name of module in uppercase)
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
@@ -293,7 +294,7 @@ class modSites2 extends DolibarrModules
 			'prefix' => img_picto('', $this->picto, 'class="paddingright pictofixedwidth valignmiddle"'),
 			'mainmenu'=>'sites2',
 			'leftmenu'=>'',
-			'url'=>'custom/sites2/site_list.php',
+			'url'=>'/sites2/site_list.php',
 			'langs'=>'sites2@sites2',
 			'position'=>100+$r,
 			'enabled'=>'$conf->sites2->enabled',
@@ -311,7 +312,7 @@ class modSites2 extends DolibarrModules
 			'prefix' => img_picto('', $this->picto, 'class="paddingright pictofixedwidth valignmiddle"'),
 			'mainmenu'=>'sites2',
 			'leftmenu'=>'sites_list',
-			'url'=>'custom/sites2/site_list.php',
+			'url'=>'/sites2/site_list.php',
 			'langs'=>'sites2@sites2',
 			'position'=>1000+$r,
 			'enabled'=>'$conf->sites2->enabled',
@@ -326,7 +327,7 @@ class modSites2 extends DolibarrModules
 			'prefix' => img_picto('', 'map-marker', 'class="paddingright pictofixedwidth valignmiddle"'),
 			'mainmenu'=>'sites2',
 			'leftmenu'=>'sites_map',
-			'url'=>'custom/sites2/site_map.php',
+			'url'=>'/sites2/site_map.php',
 			'langs'=>'sites2@sites2',
 			'position'=>1000+$r,
 			'enabled'=>'$conf->sites2->enabled',
@@ -340,7 +341,7 @@ class modSites2 extends DolibarrModules
 			'titre'=>'NewSite',
 			'mainmenu'=>'sites2',
 			'leftmenu'=>'sites2_new',
-			'url'=>'custom/sites2/site_card.php?action=create',
+			'url'=>'/sites2/site_card.php?action=create',
 			'langs'=>'sites2@sites2',
 			'position'=>1000+$r,
 			'enabled'=>'$conf->sites2->enabled',
@@ -355,7 +356,7 @@ class modSites2 extends DolibarrModules
 			'prefix' => img_picto('', 'fa-chart-pie', 'class="paddingright pictofixedwidth valignmiddle"'),
 			'mainmenu'=>'sites2',
 			'leftmenu'=>'sites2_stats',
-			'url'=>'custom/sites2/statistiques.php',
+			'url'=>'/sites2/statistiques.php',
 			'langs'=>'sites2@sites2',
 			'position'=>1000+$r,
 			'enabled'=>'$conf->sites2->enabled',
@@ -373,7 +374,7 @@ class modSites2 extends DolibarrModules
 			'prefix' => img_picto('', 'fa-calendar-check', 'class="paddingright pictofixedwidth valignmiddle"'),
 			'mainmenu'=>'sites2',
 			'leftmenu'=>'chantier_list',
-			'url'=>'custom/sites2/chantier_list.php',
+			'url'=>'/sites2/chantier_list.php',
 			'langs'=>'sites2@sites2',
 			'position'=>1000+$r,
 			'enabled'=>'$conf->sites2->enabled',

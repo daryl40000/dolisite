@@ -238,7 +238,7 @@ echo '
             }
         }
         
-        popupContent += "<br><a href=\'' . DOL_URL_ROOT . '/custom/sites2/site_card.php?id=" + site.id + "\'>' . $langs->trans("ViewSite") . '</a>";
+        popupContent += "<br><a href=\'' . dol_buildpath('/sites2/site_card.php', 1) . '?id=" + site.id + "\'>' . $langs->trans("ViewSite") . '</a>";
         
         // Choisir l\'icône selon la portée électrique
         var markerIcon = (site.isInElectricRange && ' . ($electricFleetEnabled ? 'true' : 'false') . ') ? greenIcon : blueIcon;
@@ -253,7 +253,7 @@ echo '
     // Ajouter l\'agence de référence si configurée
     if (referenceAgency) {
         var refAgencyIcon = L.icon({
-            iconUrl: "' . DOL_URL_ROOT . '/custom/sites2/img/ref_agency_marker.svg",
+            iconUrl: "' . dol_buildpath('/sites2/img/ref_agency_marker.svg', 1) . '",
             iconSize: [25, 41],
             iconAnchor: [12, 41],
             popupAnchor: [1, -34]
@@ -336,7 +336,7 @@ if ($resql2) {
         print '<td>';
         if ($obj->count > 0) {
             // Lien cliquable vers la liste des sites sans coordonnées
-            print '<a href="' . DOL_URL_ROOT . '/custom/sites2/site_list.php?search_no_coordinates=1" class="classfortooltip" title="' . $langs->trans("ViewSitesWithoutCoordinates") . '">';
+            print '<a href="' . dol_buildpath('/sites2/site_list.php', 1) . '?search_no_coordinates=1" class="classfortooltip" title="' . $langs->trans("ViewSitesWithoutCoordinates") . '">';
             print $obj->count;
             print '</a>';
         } else {
@@ -355,7 +355,7 @@ if ($hasReferenceAgency) {
     print $conf->global->SITES2_REFERENCE_AGENCY_NAME;
 } else {
     print '<span class="warning">' . $langs->trans("NotConfigured") . '</span> ';
-    print '<a href="' . DOL_URL_ROOT . '/custom/sites2/admin/reference_agency.php">' . $langs->trans("ConfigureHere") . '</a>';
+    print '<a href="' . dol_buildpath('/sites2/admin/reference_agency.php', 1) . '">' . $langs->trans("ConfigureHere") . '</a>';
 }
 print '</td>';
 print '</tr>';

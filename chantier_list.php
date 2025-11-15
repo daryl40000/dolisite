@@ -57,7 +57,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/comm/propal/class/propal.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/sites2/lib/sites2.lib.php';
+dol_include_once('/sites2/lib/sites2.lib.php');
 
 // Load translation files required by the page
 $langs->loadLangs(array("sites2@sites2", "propal", "other"));
@@ -152,7 +152,7 @@ $sql_chantiers .= " AND c.date_debut IS NOT NULL"; // Only worksites with dates
 // Build SQL for assigned worksites (without dates)
 $sql_chantiers_affectes = "SELECT DISTINCT c.rowid, c.fk_propal, c.date_debut, c.date_fin, c.location_type, c.note_public,";
 $sql_chantiers_affectes .= " p.ref as propal_ref, p.fk_statut as propal_status, p.datep as date_propal, p.note_public as propal_note_public,";
-$sql_chantiers_affectes .= " s.rowid as site_id, s.label as site_label, s.ref as site_ref,";
+$sql_chantiers_affectes .= " s.rowid as site_id, s.label as site_label, s.ref as site_ref, s.latitude, s.longitude,";
 $sql_chantiers_affectes .= " soc.rowid as soc_id, soc.nom as soc_nom";
 $sql_chantiers_affectes .= " FROM ".MAIN_DB_PREFIX."sites2_chantier as c";
 $sql_chantiers_affectes .= " LEFT JOIN ".MAIN_DB_PREFIX."propal as p ON p.rowid = c.fk_propal";
@@ -194,11 +194,9 @@ if ($res_sites_all) {
 			$j++;
 		}
 	} else {
-		// Debug: aucun site trouvé
 		dol_syslog(__METHOD__.": Aucun site trouvé dans la base. Requête: ".$sql_sites_all, LOG_WARNING);
 	}
 } else {
-	// Debug: erreur SQL
 	dol_syslog(__METHOD__.": Erreur SQL pour récupérer les sites: ".$db->lasterror(), LOG_ERR);
 	dol_syslog(__METHOD__.": Requête: ".$sql_sites_all, LOG_ERR);
 }
@@ -255,16 +253,34 @@ $resql_chantiers = $db->query($sql_chantiers);
 if (!$resql_chantiers) {
 	setEventMessages("Erreur SQL pour les chantiers programmés: ".$db->lasterror(), null, 'errors');
 	$num_chantiers = 0;
+	$chantiers_data = array();
 } else {
 	$num_chantiers = $db->num_rows($resql_chantiers);
+	// Stocker les résultats dans un tableau pour réutilisation
+	$chantiers_data = array();
+	$i = 0;
+	while ($i < $num_chantiers) {
+		$obj = $db->fetch_object($resql_chantiers);
+		$chantiers_data[] = $obj;
+		$i++;
+	}
 }
 
 $resql_chantiers_affectes = $db->query($sql_chantiers_affectes);
 if (!$resql_chantiers_affectes) {
 	setEventMessages("Erreur SQL pour les chantiers affectés: ".$db->lasterror(), null, 'errors');
 	$num_chantiers_affectes = 0;
+	$chantiers_affectes_data = array();
 } else {
 	$num_chantiers_affectes = $db->num_rows($resql_chantiers_affectes);
+	// Stocker les résultats dans un tableau pour réutilisation
+	$chantiers_affectes_data = array();
+	$i = 0;
+	while ($i < $num_chantiers_affectes) {
+		$obj = $db->fetch_object($resql_chantiers_affectes);
+		$chantiers_affectes_data[] = $obj;
+		$i++;
+	}
 }
 
 $resql_propals = $db->query($sql_propals);
@@ -275,7 +291,6 @@ if (!$resql_propals) {
 	$num_propals = $db->num_rows($resql_propals);
 }
 
-// Debug: Log queries if in debug mode
 if (!empty($conf->global->MAIN_FEATURES_LEVEL) && $conf->global->MAIN_FEATURES_LEVEL >= 2) {
 	dol_syslog("chantier_list.php - Query chantiers: ".$sql_chantiers, LOG_DEBUG);
 	dol_syslog("chantier_list.php - Query propals: ".$sql_propals, LOG_DEBUG);
@@ -308,11 +323,200 @@ print '</div>';
 print '</div>';
 print '</form>';
 
+// Section 0: Carte des chantiers
+// Récupérer les données pour la carte (chantiers avec coordonnées)
+$map_chantiers = array();
+$map_chantiers_affectes = array();
+
+// Récupérer les chantiers à venir avec coordonnées
+if (!empty($chantiers_data)) {
+	foreach ($chantiers_data as $obj) {
+		if (!empty($obj->latitude) && !empty($obj->longitude)) {
+			$date_debut_ts = !empty($obj->date_debut) ? $db->jdate($obj->date_debut) : null;
+			$date_fin_ts = !empty($obj->date_fin) ? $db->jdate($obj->date_fin) : null;
+			$date_debut_str = $date_debut_ts ? date('Y-m-d', $date_debut_ts) : '';
+			$date_fin_str = $date_fin_ts ? date('Y-m-d', $date_fin_ts) : '';
+			$date_debut_display = $date_debut_ts ? dol_print_date($date_debut_ts, 'day') : '';
+			$date_fin_display = $date_fin_ts ? dol_print_date($date_fin_ts, 'day') : '';
+			
+			$map_chantiers[] = array(
+				'latitude' => floatval($obj->latitude),
+				'longitude' => floatval($obj->longitude),
+				'site_label' => $obj->site_label,
+				'site_id' => $obj->site_id,
+				'propal_ref' => $obj->propal_ref,
+				'propal_id' => $obj->fk_propal,
+				'soc_nom' => $obj->soc_nom,
+				'soc_id' => $obj->soc_id,
+				'date_debut' => $date_debut_display,
+				'date_fin' => $date_fin_display,
+				'location_type' => isset($obj->location_type) ? (int)$obj->location_type : 1
+			);
+		}
+	}
+}
+
+// Récupérer les chantiers affectés avec coordonnées
+if (!empty($chantiers_affectes_data)) {
+	foreach ($chantiers_affectes_data as $obj) {
+		if (!empty($obj->latitude) && !empty($obj->longitude)) {
+			$map_chantiers_affectes[] = array(
+				'latitude' => floatval($obj->latitude),
+				'longitude' => floatval($obj->longitude),
+				'site_label' => $obj->site_label,
+				'site_id' => $obj->site_id,
+				'propal_ref' => $obj->propal_ref,
+				'propal_id' => $obj->fk_propal,
+				'soc_nom' => $obj->soc_nom,
+				'soc_id' => $obj->soc_id,
+				'location_type' => isset($obj->location_type) ? (int)$obj->location_type : 1
+			);
+		}
+	}
+}
+
+// Afficher la carte si au moins un chantier a des coordonnées
+if (count($map_chantiers) > 0 || count($map_chantiers_affectes) > 0) {
+	print '<div class="div-table-responsive" style="margin-bottom: 30px;">';
+	print '<h3>'.$langs->trans("MapOfScheduledWorkSites").'</h3>';
+	
+	// Déterminer le fournisseur de cartes
+	$mapProvider = !empty($conf->global->SITES2_MAP_PROVIDER) ? $conf->global->SITES2_MAP_PROVIDER : 'openstreetmap';
+	$googleMapsApiKey = !empty($conf->global->SITES2_GOOGLE_MAPS_API_KEY) ? $conf->global->SITES2_GOOGLE_MAPS_API_KEY : '';
+	
+	// Charger les scripts et styles Leaflet
+	print '<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>';
+	print '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin="" />';
+	
+	print '<div id="map_chantiers" style="height: 350px; width: 100%; border: 1px solid #ddd; border-radius: 5px;"></div>';
+	
+	print '<script type="text/javascript">
+		var map_chantiers = L.map("map_chantiers");
+		var markers = [];
+		var bounds = null;';
+	
+	// Ajouter le fond de carte
+	if ($mapProvider == 'googlemaps' && !empty($googleMapsApiKey)) {
+		print '
+		L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+			subdomains: ["mt0", "mt1", "mt2", "mt3"],
+			attribution: "© Google Maps",
+			minZoom: 1,
+			maxZoom: 20
+		}).addTo(map_chantiers);';
+	} else {
+		print '
+		L.tileLayer("https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", {
+			attribution: \'données © <a href="//osm.org/copyright">OpenStreetMap</a>/ODbL - rendu <a href="//openstreetmap.fr">OSM France</a>\',
+			minZoom: 1,
+			maxZoom: 20
+		}).addTo(map_chantiers);';
+	}
+	
+	// Ajouter les marqueurs pour les chantiers à venir
+	if (count($map_chantiers) > 0) {
+		print '
+		// Marqueurs pour les chantiers à venir (avec dates)
+		var chantiersData = ' . json_encode($map_chantiers) . ';
+		chantiersData.forEach(function(chantier) {
+			var popupContent = "<h4>" + ' . json_encode($langs->trans("ScheduledWorkSite")) . ' + "</h4>";
+			popupContent += "<strong>" + ' . json_encode($langs->trans("Site")) . ' + ":</strong> <a href=\\"site_card.php?id=" + chantier.site_id + "\\">" + chantier.site_label + "</a><br>";
+			if (chantier.propal_ref) {
+				popupContent += "<strong>" + ' . json_encode($langs->trans("Proposal")) . ' + ":</strong> <a href=\\"' . DOL_URL_ROOT . '/comm/propal/card.php?id=" + chantier.propal_id + "\\">" + chantier.propal_ref + "</a><br>";
+			}
+			if (chantier.soc_nom) {
+				popupContent += "<strong>" + ' . json_encode($langs->trans("ThirdParty")) . ' + ":</strong> <a href=\\"' . DOL_URL_ROOT . '/societe/card.php?socid=" + chantier.soc_id + "\\">" + chantier.soc_nom + "</a><br>";
+			}
+			if (chantier.date_debut) {
+				popupContent += "<strong>" + ' . json_encode($langs->trans("Date")) . ' + ":</strong> " + chantier.date_debut;
+				if (chantier.date_fin && chantier.date_fin != chantier.date_debut) {
+					popupContent += " - " + chantier.date_fin;
+				}
+				popupContent += "<br>";
+			}
+			popupContent += "<strong>" + ' . json_encode($langs->trans("WorkLocationType")) . ' + ":</strong> " + (chantier.location_type == 0 ? ' . json_encode($langs->trans("Interior")) . ' : ' . json_encode($langs->trans("Exterior")) . ');
+			
+			var marker = L.marker([chantier.latitude, chantier.longitude], {
+				icon: L.icon({
+					iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+					shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+					iconSize: [25, 41],
+					iconAnchor: [12, 41],
+					popupAnchor: [1, -34],
+					shadowSize: [41, 41]
+				})
+			}).addTo(map_chantiers);
+			marker.bindPopup(popupContent);
+			markers.push(marker);
+			
+			if (bounds === null) {
+				bounds = L.latLngBounds([chantier.latitude, chantier.longitude]);
+			} else {
+				bounds.extend([chantier.latitude, chantier.longitude]);
+			}
+		});';
+	}
+	
+	// Ajouter les marqueurs pour les chantiers affectés
+	if (count($map_chantiers_affectes) > 0) {
+		print '
+		// Marqueurs pour les chantiers affectés (sans dates)
+		var chantiersAffectesData = ' . json_encode($map_chantiers_affectes) . ';
+		chantiersAffectesData.forEach(function(chantier) {
+			var popupContent = "<h4>" + ' . json_encode($langs->trans("AssignedWorkSite")) . ' + "</h4>";
+			popupContent += "<strong>" + ' . json_encode($langs->trans("Site")) . ' + ":</strong> <a href=\\"site_card.php?id=" + chantier.site_id + "\\">" + chantier.site_label + "</a><br>";
+			if (chantier.propal_ref) {
+				popupContent += "<strong>" + ' . json_encode($langs->trans("Proposal")) . ' + ":</strong> <a href=\\"' . DOL_URL_ROOT . '/comm/propal/card.php?id=" + chantier.propal_id + "\\">" + chantier.propal_ref + "</a><br>";
+			}
+			if (chantier.soc_nom) {
+				popupContent += "<strong>" + ' . json_encode($langs->trans("ThirdParty")) . ' + ":</strong> <a href=\\"' . DOL_URL_ROOT . '/societe/card.php?socid=" + chantier.soc_id + "\\">" + chantier.soc_nom + "</a><br>";
+			}
+			popupContent += "<strong>" + ' . json_encode($langs->trans("WorkLocationType")) . ' + ":</strong> " + (chantier.location_type == 0 ? ' . json_encode($langs->trans("Interior")) . ' : ' . json_encode($langs->trans("Exterior")) . ');
+			
+			var marker = L.marker([chantier.latitude, chantier.longitude], {
+				icon: L.icon({
+					iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png",
+					shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+					iconSize: [25, 41],
+					iconAnchor: [12, 41],
+					popupAnchor: [1, -34],
+					shadowSize: [41, 41]
+				})
+			}).addTo(map_chantiers);
+			marker.bindPopup(popupContent);
+			markers.push(marker);
+			
+			if (bounds === null) {
+				bounds = L.latLngBounds([chantier.latitude, chantier.longitude]);
+			} else {
+				bounds.extend([chantier.latitude, chantier.longitude]);
+			}
+		});';
+	}
+	
+	// Ajuster la vue pour inclure tous les marqueurs
+	print '
+		if (bounds !== null && markers.length > 0) {
+			map_chantiers.fitBounds(bounds, {padding: [50, 50]});
+		} else if (markers.length === 1) {
+			map_chantiers.setView([markers[0].getLatLng().lat, markers[0].getLatLng().lng], 13);
+		}
+	</script>';
+	
+	// Légende
+	print '<div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">';
+	print '<strong>'.$langs->trans("Legend").':</strong> ';
+	print '<span style="display: inline-block; margin-left: 15px;"><img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png" style="width: 20px; height: 32px; vertical-align: middle;"> '.$langs->trans("ScheduledWorkSites").'</span>';
+	print '<span style="display: inline-block; margin-left: 15px;"><img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png" style="width: 20px; height: 32px; vertical-align: middle;"> '.$langs->trans("AssignedWorkSites").'</span>';
+	print '</div>';
+	
+	print '</div>';
+}
+
 // Section 1: Scheduled worksites - Affichage en tuiles type calendrier
 print '<div class="div-table-responsive">';
 print '<h3>'.$langs->trans("ScheduledWorkSites").' ('.$num_chantiers.')</h3>';
 
-// Debug info
 if ($num_chantiers == 0) {
 	print '<div class="info">';
 	print '<i class="fas fa-info-circle"></i> '.$langs->trans("NoScheduledWorkSite").'<br>';
@@ -324,15 +528,15 @@ if ($num_chantiers == 0) {
 print '<style>
 .chantier-calendar-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-	gap: 20px;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 15px;
 	margin-top: 20px;
 }
 .chantier-tile {
 	background: white;
 	border: 1px solid #ddd;
 	border-radius: 8px;
-	padding: 15px;
+	padding: 12px;
 	box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 	transition: box-shadow 0.3s;
 }
@@ -457,9 +661,7 @@ print '<style>
 if ($num_chantiers > 0) {
 	print '<div class="chantier-calendar-grid">';
 	
-	$i = 0;
-	while ($i < $num_chantiers) {
-		$obj = $db->fetch_object($resql_chantiers);
+	foreach ($chantiers_data as $obj) {
 		
 		// Récupérer les données météo si le chantier est extérieur et que le site a des coordonnées
 		$weatherData = null;
@@ -612,8 +814,6 @@ if ($num_chantiers > 0) {
 		print '</div>';
 		
 		print '</div>'; // Fin de la tuile
-		
-		$i++;
 	}
 	
 	print '</div>'; // Fin de la grille
@@ -627,7 +827,6 @@ print '</div>';
 print '<div class="div-table-responsive" style="margin-top: 30px;">';
 print '<h3>'.$langs->trans("AssignedWorkSites").' ('.$num_chantiers_affectes.')</h3>';
 
-// Debug info
 if ($num_chantiers_affectes == 0) {
 	print '<div class="info">';
 	print '<i class="fas fa-info-circle"></i> '.$langs->trans("NoAssignedWorkSite").'<br>';
@@ -648,9 +847,7 @@ print '<th class="right">'.$langs->trans("Actions").'</th>';
 print '</tr>';
 
 if ($num_chantiers_affectes > 0) {
-	$i = 0;
-	while ($i < $num_chantiers_affectes) {
-		$obj = $db->fetch_object($resql_chantiers_affectes);
+	foreach ($chantiers_affectes_data as $obj) {
 		
 		print '<tr class="oddeven">';
 		
@@ -715,8 +912,6 @@ if ($num_chantiers_affectes > 0) {
 		print '</td>';
 		
 		print '</tr>';
-		
-		$i++;
 	}
 } else {
 	print '<tr><td colspan="6" class="opacitymedium">'.$langs->trans("NoAssignedWorkSite").'</td></tr>';
@@ -729,7 +924,6 @@ print '</div>';
 print '<div class="div-table-responsive" style="margin-top: 30px;">';
 print '<h3>'.$langs->trans("SignedProposalsNotLinked").' ('.$num_propals.')</h3>';
 
-// Debug info
 if ($num_propals == 0) {
 	print '<div class="info">';
 	print '<i class="fas fa-info-circle"></i> '.$langs->trans("NoSignedProposalNotLinked").'<br>';
@@ -849,7 +1043,6 @@ if ($num_propals > 0) {
 		} else {
 			// Afficher un message d'erreur si aucun site n'est trouvé
 			print '<span class="opacitymedium">'.$langs->trans("NoSiteAvailable").'</span>';
-			// Debug: afficher des informations de débogage
 			if (isset($res_sites_all) && !$res_sites_all) {
 				print '<br><small class="error">Erreur SQL: '.$db->lasterror().'</small>';
 			} elseif (!isset($all_sites) || empty($all_sites)) {

@@ -49,11 +49,6 @@ if (!$res) {
 	die("Include of main fails");
 }
 
-// Vérification que les fonctions essentielles sont disponibles
-if (!function_exists('GETPOST')) {
-	die("La fonction GETPOST n'est pas définie. Vérifiez le chargement de main.inc.php");
-}
-
 global $langs, $user;
 
 // Libraries
@@ -118,7 +113,7 @@ print '</tr>';
 // Version
 print '<tr>';
 print '<td>'.$langs->trans("Version").'</td>';
-print '<td>1.10</td>';
+print '<td>2.3.2</td>';
 print '</tr>';
 
 // Author

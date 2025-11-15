@@ -344,7 +344,7 @@ if (!$hasReferenceAgency) {
     print '<div class="warning">';
     print '<span class="fas fa-exclamation-triangle"></span> ';
     print $langs->trans("ElectricFleetRequiresReferenceAgency");
-    print ' <a href="' . DOL_URL_ROOT . '/custom/sites2/admin/reference_agency.php">' . $langs->trans("ConfigureReferenceAgency") . '</a>';
+    print ' <a href="' . dol_buildpath('/sites2/admin/reference_agency.php', 1) . '">' . $langs->trans("ConfigureReferenceAgency") . '</a>';
     print '</div>';
     print '</td></tr>';
 } else {

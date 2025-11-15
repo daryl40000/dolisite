@@ -1,6 +1,39 @@
 # CHANGELOG SITES2 MODULE
 
-## 2.3.1 - 2024-12-XX
+## 2.3.2 - 2025-11-15
+### Corrections
+- **Migration vers One Call API 3.0** : Correction de l'utilisation de l'API payante OpenWeatherMap
+  - Remplacement de l'endpoint `/forecast/daily` (déprécié) par `/data/3.0/onecall` (One Call API 3.0)
+  - Adaptation du traitement des données pour la nouvelle structure de réponse (`current` et `daily` au lieu de `list`)
+  - Correction de toutes les références à 15/16 jours vers 8 jours (limite réelle de l'API One Call 3.0)
+  - Mise à jour des commentaires, documentation et fichiers de langue pour refléter 8 jours au lieu de 15/16 jours
+  - Affichage de 8 jours de prévisions météo avec l'API payante (au lieu de 6 jours avec l'API gratuite)
+
+### Améliorations
+- **Carte des chantiers programmés** : Ajout d'une carte interactive sur la page "Chantiers à venir"
+  - Affichage de tous les chantiers à venir (avec dates) et chantiers affectés (sans dates) sur une carte
+  - Marqueurs bleus pour les chantiers à venir, marqueurs orange pour les chantiers affectés
+  - Popups informatives avec détails du chantier (site, devis, tiers, dates, type de localisation)
+  - Légende pour distinguer les deux types de chantiers
+  - Ajustement automatique de la vue pour afficher tous les marqueurs
+  - Support des fournisseurs de cartes (OpenStreetMap par défaut, Google Maps si configuré)
+  - Optimisation : stockage des résultats SQL dans des tableaux pour éviter les requêtes multiples
+
+- **Interface utilisateur** : Optimisation de l'affichage
+  - Réduction de la hauteur de la carte de 500px à 350px
+  - Réduction de la taille minimale des tuiles calendrier de 320px à 260px
+  - Réduction de l'espacement entre les tuiles de 20px à 15px
+  - Réduction du padding des tuiles de 15px à 12px
+  - Interface plus compacte tout en conservant la lisibilité
+
+### Traductions
+- Ajout des traductions manquantes pour la carte des chantiers :
+  - `MapOfScheduledWorkSites` (FR/EN)
+  - `AssignedWorkSite` (FR/EN)
+  - `Legend` (FR/EN)
+- Mise à jour des textes pour refléter 8 jours au lieu de 15 jours dans les fichiers de langue
+
+## 2.3.1 - 2025-11-15
 ### Corrections
 - **Correction de l'erreur `checkToken()`** : Ajout de la bibliothèque `security.lib.php` et implémentation d'une vérification conditionnelle du token CSRF compatible avec différentes versions de Dolibarr
   - Support de `checkToken()`, `dol_check_token()` ou vérification basique via session
@@ -17,13 +50,13 @@
 - **Gestion des erreurs API** : Messages d'erreur plus détaillés incluant le code d'erreur retourné par l'API OpenWeatherMap
 - **Robustesse** : Vérifications supplémentaires pour éviter les erreurs lorsque les données API sont incomplètes
 
-## 2.3 - 2024-12-XX
+## 2.3 - 2025-11-15
 ### Ajouts majeurs
-- **Support de l'API payante OpenWeatherMap** : Possibilité d'utiliser l'API payante pour obtenir jusqu'à 16 jours de prévisions météorologiques
-  - Nouveau paramètre de configuration `SITES2_WEATHER_API_TYPE` pour choisir entre API gratuite (5 jours) et API payante (16 jours)
-  - Support automatique des deux endpoints : `/forecast` (gratuit) et `/forecast/daily` (payant)
+- **Support de l'API payante OpenWeatherMap** : Possibilité d'utiliser l'API payante One Call API 3.0 pour obtenir jusqu'à 8 jours de prévisions météorologiques
+  - Nouveau paramètre de configuration `SITES2_WEATHER_API_TYPE` pour choisir entre API gratuite (5 jours) et API payante (8 jours)
+  - Support automatique des deux endpoints : `/forecast` (gratuit) et `/data/3.0/onecall` (payant - One Call API 3.0)
   - Adaptation automatique du traitement des données selon le type d'API utilisé
-  - Limite automatique : 6 jours pour l'API gratuite, 15 jours pour l'API payante
+  - Limite automatique : 6 jours pour l'API gratuite, 8 jours pour l'API payante
   - Interface de configuration avec explications sur les différences entre les deux types d'API
 
 - **Gestion des chantiers programmés** : Nouvelle fonctionnalité complète de planification des chantiers
@@ -36,7 +69,7 @@
 
 - **Prévisions météorologiques pour chantiers extérieurs** :
   - Affichage automatique de la météo pour les jours d'intervention des chantiers extérieurs avec dates définies
-  - Affichage des jours favorables (météo clémente) sur 15 jours pour les chantiers extérieurs sans date définie
+  - Affichage des jours favorables (météo clémente) sur 8 jours pour les chantiers extérieurs sans date définie (5 jours avec API gratuite)
   - Filtrage des jours favorables : uniquement les jours sans pluie, orage ou neige
   - Inclusion des jours nuageux comme météo clémente
   - Affichage uniquement des jours travaillés (lundi à vendredi) pour les prévisions sans date
@@ -84,7 +117,7 @@
   - Dates optionnelles (peuvent être NULL)
   - Type de localisation : 0 = intérieur, 1 = extérieur
 
-## 2.2 - 2024-12-14
+## 2.2 - 2025-11-14
 ### Corrections
 - Correction du bug d'affichage de l'erreur "ErrorBadValueForContactId" lors de l'ajout d'un contact
   - Validation des paramètres (contactid et typeid) avant l'appel à la fonction add_contact()
@@ -92,7 +125,7 @@
   - L'erreur ne s'affiche plus lorsque l'opération réussit correctement
   - Ajout des traductions pour les messages d'erreur de validation
 
-## 2.1 - 2024-12-14
+## 2.1 - 2025-11-14
 ### Améliorations
 - Réorganisation de l'affichage : la carte s'affiche maintenant en premier, suivie du panneau météo en dessous
 - Réduction de la taille du tableau météo pour un affichage plus compact
@@ -101,7 +134,7 @@
   - Espacements optimisés
   - Interface plus sobre et moins encombrante
 
-## 2.0 - 2024-12-14
+## 2.0 - 2025-11-14
 ### Ajouts majeurs
 - **Nouvelle fonctionnalité météo** : Affichage des prévisions météorologiques sur la carte du site
   - Prévisions pour aujourd'hui et les 5 jours à venir
@@ -115,7 +148,7 @@
 - Les applications cartographiques (comme OsmAnd) utilisent maintenant les coordonnées précises lorsque disponibles
 - L'adresse n'est utilisée qu'en cas d'absence des coordonnées GPS
 
-## 1.10 - 2024-03-18
+## 1.10 - 2025-03-18
 ### Ajouts
 - Ajout d'un tableau récapitulatif des contacts sur la page principale du site
 - Optimisation de l'affichage des contacts dans l'onglet Contact
@@ -129,7 +162,7 @@
 - Correction des erreurs lors de l'ajout de nouveaux contacts
 - Optimisation de la gestion des colonnes dans l'interface contact
 
-## 1.00 - 2024-02-15
+## 1.00 - 2025-02-15
 ### Version initiale
 - Gestion des sites avec adresses complètes
 - Géocodage automatique des adresses (latitude/longitude)

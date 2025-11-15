@@ -218,7 +218,7 @@ if ($action == 'geocode') {
 
 // Nouvelle action pour recalculer toutes les distances
 if ($action == 'recalculate_all_distances') {
-    require_once DOL_DOCUMENT_ROOT . '/custom/sites2/class/site.class.php';
+    dol_include_once('/sites2/class/site.class.php');
     
     $site = new Site($db);
     $sites = $site->fetchAll();
