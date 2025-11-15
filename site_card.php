@@ -698,12 +698,267 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 		</style>';
 	}
 	
-	print '    </div>';
-
-	// Récupérer les données météo si activé (avant l'affichage de la carte)
+	// Ajout de la section des chantiers programmés
+	print '<h3>' . $langs->trans("ScheduledWorkSites") . '</h3>';
+	print '<div class="underbanner clearboth"></div>';
+	
+	// Récupérer les chantiers programmés pour ce site
+	$sql = "SELECT c.rowid, c.fk_propal, c.date_debut, c.date_fin, c.location_type, c.note_public,";
+	$sql .= " p.ref as propal_ref, p.fk_statut as propal_status";
+	$sql .= " FROM ".MAIN_DB_PREFIX."sites2_chantier as c";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."propal as p ON p.rowid = c.fk_propal";
+	$sql .= " WHERE c.fk_site = ".((int)$object->id);
+	$sql .= " ORDER BY c.date_debut ASC, c.date_creation DESC";
+	
+	// Initialiser les variables météo avant la boucle
 	$weatherEnabled = !empty($conf->global->SITES2_WEATHER_ENABLED);
 	$weatherData = null;
+	
+	// Récupérer les données météo si activé (pour afficher la météo des jours de chantier et les jours favorables)
+	// On les récupère avant la boucle pour pouvoir les réutiliser
 	if ($weatherEnabled && !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY) && !empty($object->latitude) && !empty($object->longitude)) {
+		$weatherData = sites2GetWeatherData($object->latitude, $object->longitude, $conf->global->SITES2_OPENWEATHERMAP_API_KEY);
+	}
+	
+	$resql_chantier = $db->query($sql);
+	if ($resql_chantier && $db->num_rows($resql_chantier) > 0) {
+		
+		$num_chantiers = $db->num_rows($resql_chantier);
+		$i_chantier = 0;
+		
+		while ($i_chantier < $num_chantiers) {
+			$obj_chantier = $db->fetch_object($resql_chantier);
+			
+			print '<div style="margin-bottom: 15px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 5px;">';
+			
+			// Devis
+			print '<div style="margin-bottom: 8px;">';
+			print '<strong><i class="fa fa-file-invoice"></i> ' . $langs->trans("Proposal") . ' : </strong>';
+			if (!empty($obj_chantier->propal_ref)) {
+				$propal_url = DOL_URL_ROOT.'/comm/propal/card.php?id='.$obj_chantier->fk_propal;
+				print '<a href="'.$propal_url.'" target="_blank">'.$obj_chantier->propal_ref.'</a>';
+				if ($obj_chantier->propal_status == 2) {
+					print ' <span class="badge badge-status4">'.$langs->trans("Signed").'</span>';
+				} elseif ($obj_chantier->propal_status == 1) {
+					print ' <span class="badge badge-status1">'.$langs->trans("Validated").'</span>';
+				}
+			} else {
+				print '<span class="opacitymedium">-</span>';
+			}
+			print '</div>';
+			
+			// Dates
+			print '<div style="margin-bottom: 8px;">';
+			print '<strong><i class="fa fa-calendar-alt"></i> ' . $langs->trans("Dates") . ' : </strong>';
+			if (!empty($obj_chantier->date_debut)) {
+				$date_debut_formatted = dol_print_date($db->jdate($obj_chantier->date_debut), 'day');
+				print $date_debut_formatted;
+				
+				if (!empty($obj_chantier->date_fin)) {
+					$date_fin_formatted = dol_print_date($db->jdate($obj_chantier->date_fin), 'day');
+					if ($obj_chantier->date_debut != $obj_chantier->date_fin) {
+						print ' - ' . $date_fin_formatted;
+						
+						// Calculer le nombre de jours
+						$date_debut_ts = $db->jdate($obj_chantier->date_debut);
+						$date_fin_ts = $db->jdate($obj_chantier->date_fin);
+						$diff = $date_fin_ts - $date_debut_ts;
+						$days = floor($diff / 86400) + 1;
+						print ' <span class="opacitymedium">(' . $days . ' ' . $langs->trans("Days") . ')</span>';
+					}
+				} else {
+					print ' <span class="opacitymedium">(' . $langs->trans("OneDay") . ')</span>';
+				}
+			} else {
+				print '<span class="opacitymedium">' . $langs->trans("DateNotDecided") . '</span>';
+			}
+			print '</div>';
+			
+			// Type de localisation
+			$location_type = isset($obj_chantier->location_type) ? (int)$obj_chantier->location_type : 1; // Par défaut extérieur
+			print '<div style="margin-bottom: 8px;">';
+			print '<strong><i class="fa fa-map-marker-alt"></i> ' . $langs->trans("WorkLocationType") . ' : </strong>';
+			if ($location_type == 0) {
+				print '<span class="badge badge-status0"><i class="fa fa-home"></i> ' . $langs->trans("Interior") . '</span>';
+			} else {
+				print '<span class="badge badge-status1"><i class="fa fa-sun"></i> ' . $langs->trans("Exterior") . '</span>';
+			}
+			print '</div>';
+			
+			// Météo pour les jours de chantier (uniquement si extérieur)
+			if ($location_type == 1 && $weatherEnabled && !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY) && !empty($object->latitude) && !empty($object->longitude)) {
+				// Si une date est définie, afficher la météo pour cette date
+				if (!empty($obj_chantier->date_debut)) {
+					if (!empty($weatherData) && !empty($weatherData['forecast'])) {
+						print '<div style="margin-top: 10px;">';
+						print '<strong><i class="fas fa-cloud-sun"></i> ' . $langs->trans("WeatherForWorkDays") . ' : </strong>';
+						print '<div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px;">';
+						
+						// Déterminer les dates à afficher
+						$date_debut_ts = $db->jdate($obj_chantier->date_debut);
+						$date_fin_ts = !empty($obj_chantier->date_fin) ? $db->jdate($obj_chantier->date_fin) : $date_debut_ts;
+						
+						// Convertir les timestamps en dates au format Y-m-d pour la comparaison
+						$date_debut_str = date('Y-m-d', $date_debut_ts);
+						$date_fin_str = date('Y-m-d', $date_fin_ts);
+						
+						// Parcourir les prévisions météo et afficher celles qui correspondent aux dates de chantier
+						foreach ($weatherData['forecast'] as $day) {
+							$forecast_date = $day['date']; // Format Y-m-d
+							
+							// Vérifier si cette date est dans la plage du chantier
+							if ($forecast_date >= $date_debut_str && $forecast_date <= $date_fin_str) {
+								// Afficher la météo pour ce jour
+								$forecast_timestamp = strtotime($forecast_date);
+								$date_label = dol_print_date($forecast_timestamp, 'day');
+								if ($forecast_date == date('Y-m-d')) {
+									$date_label = $langs->trans("Today");
+								} elseif ($forecast_date == date('Y-m-d', strtotime('+1 day'))) {
+									$date_label = $langs->trans("Tomorrow");
+								}
+								
+								print '<div style="flex: 0 0 auto; min-width: 80px; padding: 5px; background-color: white; border-radius: 3px; text-align: center; border: 1px solid #ccc;">';
+								print '<div style="font-weight: bold; font-size: 0.75em; margin-bottom: 3px;">' . htmlspecialchars($date_label, ENT_QUOTES, 'UTF-8') . '</div>';
+								print '<div style="margin-bottom: 3px;">';
+								
+								// Valider et nettoyer l'icône avant affichage
+								$icon = isset($day['icon']) ? preg_replace('/[^a-z0-9d]/i', '', $day['icon']) : '';
+								$description = isset($day['description']) ? htmlspecialchars($day['description'], ENT_QUOTES, 'UTF-8') : '';
+								
+								if (!empty($icon)) {
+									print '<img src="https://openweathermap.org/img/wn/' . htmlspecialchars($icon, ENT_QUOTES, 'UTF-8') . '.png" alt="' . $description . '" style="width: 35px; height: 35px;">';
+								}
+								print '</div>';
+								
+								if (!empty($description)) {
+									print '<div style="font-size: 0.7em; color: #666; margin-bottom: 2px; line-height: 1.2;">' . $description . '</div>';
+								}
+								
+								// Température
+								$temp = isset($day['temp']) ? intval($day['temp']) : 0;
+								print '<div style="font-weight: bold; font-size: 0.9em;">' . htmlspecialchars((string)$temp, ENT_QUOTES, 'UTF-8') . '°C</div>';
+								
+								if (isset($day['temp_min']) && isset($day['temp_max'])) {
+									$tempMin = intval($day['temp_min']);
+									$tempMax = intval($day['temp_max']);
+									print '<div style="font-size: 0.65em; color: #999;">' . htmlspecialchars((string)$tempMin, ENT_QUOTES, 'UTF-8') . '° / ' . htmlspecialchars((string)$tempMax, ENT_QUOTES, 'UTF-8') . '°</div>';
+								}
+								
+								print '</div>';
+							}
+						}
+						
+						print '</div>';
+						print '</div>';
+					} else {
+						print '<div style="margin-top: 5px; font-size: 0.9em; color: #999;">';
+						print '<i class="fas fa-info-circle"></i> ' . $langs->trans("WeatherDataNotAvailable");
+						print '</div>';
+					}
+				} else {
+					// Pas de date définie : afficher les jours favorables sur 15 jours
+					// Réutiliser les données météo déjà récupérées si disponibles, sinon faire un nouvel appel
+					if (!empty($weatherData) && !empty($weatherData['forecast'])) {
+						// Utiliser les données déjà récupérées pour éviter les incohérences
+						$favorableDays = sites2GetFavorableWeatherDaysFromData($weatherData['forecast']);
+					} else {
+						// Faire un nouvel appel API si les données ne sont pas disponibles
+						$favorableDays = sites2GetFavorableWeatherDays($object->latitude, $object->longitude, $conf->global->SITES2_OPENWEATHERMAP_API_KEY);
+					}
+					
+					if (!empty($favorableDays) && count($favorableDays) > 0) {
+						print '<div style="margin-top: 10px;">';
+						print '<strong><i class="fas fa-sun"></i> ' . $langs->trans("FavorableWeatherDays") . ' : </strong>';
+						print '<div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px;">';
+						
+						foreach ($favorableDays as $day) {
+							$forecast_date = $day['date'];
+							$forecast_timestamp = strtotime($forecast_date);
+							$date_label = dol_print_date($forecast_timestamp, 'day');
+							if ($forecast_date == date('Y-m-d')) {
+								$date_label = $langs->trans("Today");
+							} elseif ($forecast_date == date('Y-m-d', strtotime('+1 day'))) {
+								$date_label = $langs->trans("Tomorrow");
+							}
+							
+							print '<div style="flex: 0 0 auto; min-width: 80px; padding: 5px; background-color: #e8f5e9; border-radius: 3px; text-align: center; border: 1px solid #4caf50;">';
+							print '<div style="font-weight: bold; font-size: 0.75em; margin-bottom: 3px;">' . htmlspecialchars($date_label, ENT_QUOTES, 'UTF-8') . '</div>';
+							print '<div style="margin-bottom: 3px;">';
+							
+							// Valider et nettoyer l'icône avant affichage
+							$icon = isset($day['icon']) ? preg_replace('/[^a-z0-9d]/i', '', $day['icon']) : '';
+							$description = isset($day['description']) ? htmlspecialchars($day['description'], ENT_QUOTES, 'UTF-8') : '';
+							
+							if (!empty($icon)) {
+								print '<img src="https://openweathermap.org/img/wn/' . htmlspecialchars($icon, ENT_QUOTES, 'UTF-8') . '.png" alt="' . $description . '" style="width: 35px; height: 35px;">';
+							}
+							print '</div>';
+							
+							if (!empty($description)) {
+								print '<div style="font-size: 0.7em; color: #666; margin-bottom: 2px; line-height: 1.2;">' . $description . '</div>';
+							}
+							
+							// Température
+							$temp = isset($day['temp']) ? intval($day['temp']) : 0;
+							print '<div style="font-weight: bold; font-size: 0.9em;">' . htmlspecialchars((string)$temp, ENT_QUOTES, 'UTF-8') . '°C</div>';
+							
+							if (isset($day['temp_min']) && isset($day['temp_max'])) {
+								$tempMin = intval($day['temp_min']);
+								$tempMax = intval($day['temp_max']);
+								print '<div style="font-size: 0.65em; color: #999;">' . htmlspecialchars((string)$tempMin, ENT_QUOTES, 'UTF-8') . '° / ' . htmlspecialchars((string)$tempMax, ENT_QUOTES, 'UTF-8') . '°</div>';
+							}
+							
+							print '</div>';
+						}
+						
+						print '</div>';
+						print '</div>';
+					} else {
+						print '<div style="margin-top: 5px; font-size: 0.9em; color: #999;">';
+						print '<i class="fas fa-info-circle"></i> ' . $langs->trans("NoFavorableWeatherDays");
+						print '</div>';
+					}
+				}
+			} elseif ($location_type == 0) {
+				print '<div style="margin-top: 5px; font-size: 0.9em; color: #999;">';
+				print '<i class="fas fa-info-circle"></i> ' . $langs->trans("WeatherNotRelevantForInteriorWork");
+				print '</div>';
+			}
+			
+			// Note publique si elle existe
+			if (!empty($obj_chantier->note_public)) {
+				print '<div style="margin-top: 8px; padding: 5px; background-color: #fff; border-left: 3px solid #428bca; font-size: 0.9em;">';
+				print '<strong>' . $langs->trans("Note") . ' : </strong>' . nl2br(htmlspecialchars($obj_chantier->note_public));
+				print '</div>';
+			}
+			
+			print '</div>';
+			
+			$i_chantier++;
+		}
+		
+		// Lien vers l'onglet chantier
+		print '<div style="text-align: center; margin-top: 10px;">';
+		print '<a href="' . dol_buildpath('/sites2/site_chantier.php', 1) . '?id=' . $object->id . '" class="button">';
+		print '<i class="fa fa-calendar-alt"></i> ' . $langs->trans("ManageScheduledWorkSites");
+		print '</a>';
+		print '</div>';
+		
+		$db->free($resql_chantier);
+	} else {
+		print '<div class="opacitymedium center" style="padding: 10px;">';
+		print $langs->trans("NoScheduledWorkSite");
+		print '<br><a href="' . dol_buildpath('/sites2/site_chantier.php', 1) . '?id=' . $object->id . '">';
+		print '<i class="fa fa-plus-circle"></i> ' . $langs->trans("AddScheduledWorkSite");
+		print '</a>';
+		print '</div>';
+	}
+	
+	print '    </div>';
+
+	// Récupérer les données météo si activé (avant l'affichage de la carte) - pour la carte
+	// Si les données météo n'ont pas été récupérées pour les chantiers, les récupérer maintenant
+	if (!isset($weatherData) && $weatherEnabled && !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY) && !empty($object->latitude) && !empty($object->longitude)) {
 		$weatherData = sites2GetWeatherData($object->latitude, $object->longitude, $conf->global->SITES2_OPENWEATHERMAP_API_KEY);
 	}
 

@@ -47,6 +47,12 @@ function sitePrepareHead($object)
 	$head[$h][2] = 'contact';
 	$h++;
 	
+	// Ajout de l'onglet pour les chantiers programmés
+	$head[$h][0] = dol_buildpath('/sites2/site_chantier.php', 1).'?id='.$object->id;
+	$head[$h][1] = $langs->trans("ScheduledWorkSite");
+	$head[$h][2] = 'chantier';
+	$h++;
+	
 	// Ajout de l'onglet pour les équipements
 	if (isModEnabled('equipement')) {
 		$head[$h][0] = dol_buildpath('/sites2/site_equipement.php', 1).'?id='.$object->id;

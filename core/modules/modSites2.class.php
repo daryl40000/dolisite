@@ -61,7 +61,7 @@ class modSites2 extends DolibarrModules
 		$this->descriptionlong = "Module pour gérer les sites clients des tiers avec calcul des distances";
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated' or a version string like 'x.y.z'
-		$this->version = '2.2';
+		$this->version = '2.3';
 
 		// Key used in llx_const table to save module status enabled/disabled (where SITES2 is value of property name of module in uppercase)
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
@@ -364,6 +364,24 @@ class modSites2 extends DolibarrModules
 			'user'=>2,
 		);
 		/* END MODULEBUILDER LEFTMENU SITE */
+		
+		/* BEGIN MODULEBUILDER LEFTMENU CHANTIER */
+		$this->menu[$r++]=array(
+			'fk_menu'=>'fk_mainmenu=sites2',      // Use 'fk_mainmenu=xxx' or 'fk_mainmenu=xxx,fk_leftmenu=yyy'
+			'type'=>'left',
+			'titre'=>'ScheduledWorkSites',
+			'prefix' => img_picto('', 'fa-calendar-check', 'class="paddingright pictofixedwidth valignmiddle"'),
+			'mainmenu'=>'sites2',
+			'leftmenu'=>'chantier_list',
+			'url'=>'custom/sites2/chantier_list.php',
+			'langs'=>'sites2@sites2',
+			'position'=>1000+$r,
+			'enabled'=>'$conf->sites2->enabled',
+			'perms'=>'$user->rights->sites2->site->read',
+			'target'=>'',
+			'user'=>2,
+		);
+		/* END MODULEBUILDER LEFTMENU CHANTIER */
 
 		// Exports profiles provided by this module
 		$r = 1;
