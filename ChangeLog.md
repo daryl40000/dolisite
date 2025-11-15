@@ -1,7 +1,31 @@
 # CHANGELOG SITES2 MODULE
 
+## 2.3.1 - 2024-12-XX
+### Corrections
+- **Correction de l'erreur `checkToken()`** : Ajout de la bibliothèque `security.lib.php` et implémentation d'une vérification conditionnelle du token CSRF compatible avec différentes versions de Dolibarr
+  - Support de `checkToken()`, `dol_check_token()` ou vérification basique via session
+  - Correction de l'initialisation de la variable `$error` dans le traitement des paramètres
+
+- **Correction de l'affichage de la météo** : Résolution du problème empêchant l'affichage des prévisions météorologiques
+  - Correction de la récupération du type d'API depuis la configuration (gratuite/payante)
+  - Amélioration de la vérification des codes de réponse de l'API OpenWeatherMap (gestion des codes string et integer)
+  - Support de l'API payante qui peut ne pas retourner de champ `cod` dans la réponse
+  - Ajout de vérifications pour s'assurer que les données de prévisions sont présentes avant traitement
+  - Application des mêmes corrections à `sites2GetWeatherData` et `sites2GetFavorableWeatherDays`
+
+### Améliorations
+- **Gestion des erreurs API** : Messages d'erreur plus détaillés incluant le code d'erreur retourné par l'API OpenWeatherMap
+- **Robustesse** : Vérifications supplémentaires pour éviter les erreurs lorsque les données API sont incomplètes
+
 ## 2.3 - 2024-12-XX
 ### Ajouts majeurs
+- **Support de l'API payante OpenWeatherMap** : Possibilité d'utiliser l'API payante pour obtenir jusqu'à 16 jours de prévisions météorologiques
+  - Nouveau paramètre de configuration `SITES2_WEATHER_API_TYPE` pour choisir entre API gratuite (5 jours) et API payante (16 jours)
+  - Support automatique des deux endpoints : `/forecast` (gratuit) et `/forecast/daily` (payant)
+  - Adaptation automatique du traitement des données selon le type d'API utilisé
+  - Limite automatique : 6 jours pour l'API gratuite, 15 jours pour l'API payante
+  - Interface de configuration avec explications sur les différences entre les deux types d'API
+
 - **Gestion des chantiers programmés** : Nouvelle fonctionnalité complète de planification des chantiers
   - Nouvel onglet "Chantier programmé" sur la fiche site (entre les onglets Contact et Équipement)
   - Association d'un devis signé à un site pour créer un chantier programmé

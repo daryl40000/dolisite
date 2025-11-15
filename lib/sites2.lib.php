@@ -91,11 +91,21 @@ function sites2AdminPrepareHead()
  * @param float $latitude Latitude du site
  * @param float $longitude Longitude du site
  * @param string $apiKey Clé API OpenWeatherMap
- * @return array|false Tableau avec les données météo (aujourd'hui + 5 jours) ou false en cas d'erreur
+ * @param string $apiType Type d'API : 'free' (gratuite, 5 jours) ou 'paid' (payante, 16 jours). Par défaut 'free'
+ * @return array|false Tableau avec les données météo ou false en cas d'erreur
  */
-function sites2GetWeatherData($latitude, $longitude, $apiKey)
+function sites2GetWeatherData($latitude, $longitude, $apiKey, $apiType = null)
 {
-	global $langs;
+	global $langs, $conf;
+	
+	// Récupérer le type d'API depuis la configuration si non spécifié
+	if ($apiType === null || $apiType === 'free') {
+		if (isset($conf->global->SITES2_WEATHER_API_TYPE) && !empty($conf->global->SITES2_WEATHER_API_TYPE)) {
+			$apiType = $conf->global->SITES2_WEATHER_API_TYPE;
+		} else {
+			$apiType = 'free'; // Par défaut, API gratuite
+		}
+	}
 	
 	// Validation des paramètres d'entrée
 	if (empty($apiKey) || empty($latitude) || empty($longitude)) {
@@ -124,14 +134,24 @@ function sites2GetWeatherData($latitude, $longitude, $apiKey)
 		return false;
 	}
 	
-	// URL de l'API OpenWeatherMap pour les prévisions sur 5 jours
-	// Utilisation de l'endpoint "forecast" qui donne les prévisions pour 5 jours (3 heures par 3 heures)
-	$url = "https://api.openweathermap.org/data/2.5/forecast?lat=" . urlencode((string)$latitude) . 
-	       "&lon=" . urlencode((string)$longitude) . 
-	       "&appid=" . urlencode($apiKey) . 
-	       "&units=metric&lang=fr";
+	// Déterminer l'endpoint selon le type d'API
+	$usePaidAPI = ($apiType === 'paid');
 	
-	dol_syslog(__METHOD__.": Récupération des données météo depuis OpenWeatherMap", LOG_DEBUG);
+	if ($usePaidAPI) {
+		// API payante : endpoint /forecast/daily (16 jours de prévisions quotidiennes)
+		$url = "https://api.openweathermap.org/data/2.5/forecast/daily?lat=" . urlencode((string)$latitude) . 
+		       "&lon=" . urlencode((string)$longitude) . 
+		       "&appid=" . urlencode($apiKey) . 
+		       "&units=metric&lang=fr&cnt=16"; // cnt=16 pour obtenir 16 jours
+		dol_syslog(__METHOD__.": Utilisation de l'API payante (/forecast/daily) pour récupérer les données météo", LOG_DEBUG);
+	} else {
+		// API gratuite : endpoint /forecast (5 jours, prévisions toutes les 3 heures)
+		$url = "https://api.openweathermap.org/data/2.5/forecast?lat=" . urlencode((string)$latitude) . 
+		       "&lon=" . urlencode((string)$longitude) . 
+		       "&appid=" . urlencode($apiKey) . 
+		       "&units=metric&lang=fr";
+		dol_syslog(__METHOD__.": Utilisation de l'API gratuite (/forecast) pour récupérer les données météo", LOG_DEBUG);
+	}
 	
 	// Créer un contexte de flux pour ajouter User-Agent à la requête HTTP
 	$context = stream_context_create([
@@ -152,8 +172,24 @@ function sites2GetWeatherData($latitude, $longitude, $apiKey)
 	
 	$data = json_decode($response, true);
 	
-	if (empty($data) || $data['cod'] != '200') {
-		dol_syslog(__METHOD__.": Erreur API OpenWeatherMap: " . (isset($data['message']) ? $data['message'] : 'Erreur inconnue'), LOG_ERR);
+	// Vérifier le code de réponse (peut être '200' en string ou 200 en int)
+	// L'API payante peut ne pas retourner de champ 'cod' si tout va bien
+	if (empty($data)) {
+		dol_syslog(__METHOD__.": Réponse API OpenWeatherMap vide", LOG_ERR);
+		return false;
+	}
+	
+	// Si un code d'erreur est présent, vérifier qu'il n'est pas une erreur
+	if (isset($data['cod']) && $data['cod'] != '200' && $data['cod'] != 200) {
+		$errorMsg = isset($data['message']) ? $data['message'] : 'Erreur inconnue';
+		$errorMsg .= ' (Code: ' . $data['cod'] . ')';
+		dol_syslog(__METHOD__.": Erreur API OpenWeatherMap: " . $errorMsg, LOG_ERR);
+		return false;
+	}
+	
+	// Vérifier que les données de prévisions sont présentes
+	if (!isset($data['list']) || !is_array($data['list']) || empty($data['list'])) {
+		dol_syslog(__METHOD__.": Aucune donnée de prévision dans la réponse API", LOG_WARNING);
 		return false;
 	}
 	
@@ -193,32 +229,23 @@ function sites2GetWeatherData($latitude, $longitude, $apiKey)
 		);
 	}
 	
-	// Traiter les prévisions (5 jours)
+	// Traiter les prévisions selon le type d'API
 	if (isset($data['list']) && is_array($data['list'])) {
-		foreach ($data['list'] as $forecast) {
-			// Valider la structure des données avant traitement
-			if (!isset($forecast['dt']) || !isset($forecast['main']) || !isset($forecast['weather'][0])) {
-				continue; // Ignorer les entrées invalides
-			}
-			
-			$forecastDate = date('Y-m-d', intval($forecast['dt']));
-			
-			// Si c'est aujourd'hui et qu'on a déjà les données actuelles, on peut les compléter
-			if ($forecastDate == date('Y-m-d') && isset($weatherByDay[$forecastDate])) {
-				// Mettre à jour les températures min/max si nécessaire
-				if (isset($forecast['main']['temp_min']) && isset($weatherByDay[$forecastDate]['temp_min'])) {
-					$tempMin = floatval($forecast['main']['temp_min']);
-					if ($tempMin < $weatherByDay[$forecastDate]['temp_min']) {
-						$weatherByDay[$forecastDate]['temp_min'] = round($tempMin);
-					}
+		if ($usePaidAPI) {
+			// API payante : les données sont déjà quotidiennes, structure différente
+			foreach ($data['list'] as $forecast) {
+				// Valider la structure des données avant traitement
+				if (!isset($forecast['dt']) || !isset($forecast['temp']) || !isset($forecast['weather'][0])) {
+					continue; // Ignorer les entrées invalides
 				}
-				if (isset($forecast['main']['temp_max']) && isset($weatherByDay[$forecastDate]['temp_max'])) {
-					$tempMax = floatval($forecast['main']['temp_max']);
-					if ($tempMax > $weatherByDay[$forecastDate]['temp_max']) {
-						$weatherByDay[$forecastDate]['temp_max'] = round($tempMax);
-					}
+				
+				$forecastDate = date('Y-m-d', intval($forecast['dt']));
+				
+				// Ignorer aujourd'hui car on a déjà les données actuelles
+				if ($forecastDate == date('Y-m-d')) {
+					continue;
 				}
-			} else if (!isset($weatherByDay[$forecastDate])) {
+				
 				// Nouveau jour
 				$dateLabel = '';
 				if ($forecastDate == date('Y-m-d', strtotime('+1 day'))) {
@@ -241,25 +268,94 @@ function sites2GetWeatherData($latitude, $longitude, $apiKey)
 					}
 				}
 				
+				// Structure de l'API payante : temp.min, temp.max, temp.day, etc.
 				$weatherByDay[$forecastDate] = array(
 					'date' => $forecastDate,
 					'date_label' => htmlspecialchars($dateLabel, ENT_QUOTES, 'UTF-8'),
-					'temp_min' => isset($forecast['main']['temp_min']) ? round(floatval($forecast['main']['temp_min'])) : 0,
-					'temp_max' => isset($forecast['main']['temp_max']) ? round(floatval($forecast['main']['temp_max'])) : 0,
-					'temp' => isset($forecast['main']['temp']) ? round(floatval($forecast['main']['temp'])) : 0,
+					'temp_min' => isset($forecast['temp']['min']) ? round(floatval($forecast['temp']['min'])) : 0,
+					'temp_max' => isset($forecast['temp']['max']) ? round(floatval($forecast['temp']['max'])) : 0,
+					'temp' => isset($forecast['temp']['day']) ? round(floatval($forecast['temp']['day'])) : (isset($forecast['temp']['min']) && isset($forecast['temp']['max']) ? round((floatval($forecast['temp']['min']) + floatval($forecast['temp']['max'])) / 2) : 0),
 					'description' => isset($forecast['weather'][0]['description']) ? ucfirst(htmlspecialchars($forecast['weather'][0]['description'], ENT_QUOTES, 'UTF-8')) : '',
 					'icon' => isset($forecast['weather'][0]['icon']) ? preg_replace('/[^a-z0-9d]/i', '', $forecast['weather'][0]['icon']) : '',
-					'humidity' => isset($forecast['main']['humidity']) ? intval($forecast['main']['humidity']) : 0,
-					'wind_speed' => isset($forecast['wind']['speed']) ? round(floatval($forecast['wind']['speed']) * 3.6, 1) : 0,
+					'humidity' => isset($forecast['humidity']) ? intval($forecast['humidity']) : 0,
+					'wind_speed' => isset($forecast['speed']) ? round(floatval($forecast['speed']) * 3.6, 1) : 0, // Conversion m/s en km/h
 					'is_today' => false
 				);
+			}
+		} else {
+			// API gratuite : les données sont toutes les 3 heures, il faut les agréger par jour
+			foreach ($data['list'] as $forecast) {
+				// Valider la structure des données avant traitement
+				if (!isset($forecast['dt']) || !isset($forecast['main']) || !isset($forecast['weather'][0])) {
+					continue; // Ignorer les entrées invalides
+				}
+				
+				$forecastDate = date('Y-m-d', intval($forecast['dt']));
+				
+				// Si c'est aujourd'hui et qu'on a déjà les données actuelles, on peut les compléter
+				if ($forecastDate == date('Y-m-d') && isset($weatherByDay[$forecastDate])) {
+					// Mettre à jour les températures min/max si nécessaire
+					if (isset($forecast['main']['temp_min']) && isset($weatherByDay[$forecastDate]['temp_min'])) {
+						$tempMin = floatval($forecast['main']['temp_min']);
+						if ($tempMin < $weatherByDay[$forecastDate]['temp_min']) {
+							$weatherByDay[$forecastDate]['temp_min'] = round($tempMin);
+						}
+					}
+					if (isset($forecast['main']['temp_max']) && isset($weatherByDay[$forecastDate]['temp_max'])) {
+						$tempMax = floatval($forecast['main']['temp_max']);
+						if ($tempMax > $weatherByDay[$forecastDate]['temp_max']) {
+							$weatherByDay[$forecastDate]['temp_max'] = round($tempMax);
+						}
+					}
+				} else if (!isset($weatherByDay[$forecastDate])) {
+					// Nouveau jour
+					$dateLabel = '';
+					if ($forecastDate == date('Y-m-d', strtotime('+1 day'))) {
+						$dateLabel = $langs->trans("Tomorrow");
+					} else {
+						// Utiliser date() au lieu de strftime (déprécié en PHP 8.1+)
+						$dateLabel = date('l d F', intval($forecast['dt']));
+						// Traduire le nom du jour si possible
+						$days = array('Monday' => 'Lundi', 'Tuesday' => 'Mardi', 'Wednesday' => 'Mercredi', 
+						              'Thursday' => 'Jeudi', 'Friday' => 'Vendredi', 'Saturday' => 'Samedi', 'Sunday' => 'Dimanche');
+						$months = array('January' => 'janvier', 'February' => 'février', 'March' => 'mars',
+						                'April' => 'avril', 'May' => 'mai', 'June' => 'juin',
+						                'July' => 'juillet', 'August' => 'août', 'September' => 'septembre',
+						                'October' => 'octobre', 'November' => 'novembre', 'December' => 'décembre');
+						foreach ($days as $en => $fr) {
+							$dateLabel = str_replace($en, $fr, $dateLabel);
+						}
+						foreach ($months as $en => $fr) {
+							$dateLabel = str_replace($en, $fr, $dateLabel);
+						}
+					}
+					
+					$weatherByDay[$forecastDate] = array(
+						'date' => $forecastDate,
+						'date_label' => htmlspecialchars($dateLabel, ENT_QUOTES, 'UTF-8'),
+						'temp_min' => isset($forecast['main']['temp_min']) ? round(floatval($forecast['main']['temp_min'])) : 0,
+						'temp_max' => isset($forecast['main']['temp_max']) ? round(floatval($forecast['main']['temp_max'])) : 0,
+						'temp' => isset($forecast['main']['temp']) ? round(floatval($forecast['main']['temp'])) : 0,
+						'description' => isset($forecast['weather'][0]['description']) ? ucfirst(htmlspecialchars($forecast['weather'][0]['description'], ENT_QUOTES, 'UTF-8')) : '',
+						'icon' => isset($forecast['weather'][0]['icon']) ? preg_replace('/[^a-z0-9d]/i', '', $forecast['weather'][0]['icon']) : '',
+						'humidity' => isset($forecast['main']['humidity']) ? intval($forecast['main']['humidity']) : 0,
+						'wind_speed' => isset($forecast['wind']['speed']) ? round(floatval($forecast['wind']['speed']) * 3.6, 1) : 0,
+						'is_today' => false
+					);
+				}
 			}
 		}
 	}
 	
-	// Trier par date et limiter à 6 jours (aujourd'hui + 5 jours)
+	// Trier par date et limiter selon le type d'API
 	ksort($weatherByDay);
-	$weatherByDay = array_slice($weatherByDay, 0, 6, true);
+	if ($usePaidAPI) {
+		// API payante : limiter à 15 jours (aujourd'hui + 14 jours)
+		$weatherByDay = array_slice($weatherByDay, 0, 15, true);
+	} else {
+		// API gratuite : limiter à 6 jours (aujourd'hui + 5 jours)
+		$weatherByDay = array_slice($weatherByDay, 0, 6, true);
+	}
 	
 	dol_syslog(__METHOD__.": Données météo récupérées avec succès pour " . count($weatherByDay) . " jours", LOG_DEBUG);
 	
@@ -281,11 +377,21 @@ function sites2GetWeatherData($latitude, $longitude, $apiKey)
  * @param float $latitude Latitude du site
  * @param float $longitude Longitude du site
  * @param string $apiKey Clé API OpenWeatherMap
+ * @param string $apiType Type d'API : 'free' (gratuite, 5 jours) ou 'paid' (payante, 16 jours). Par défaut 'free'
  * @return array|false Tableau avec les jours favorables ou false en cas d'erreur
  */
-function sites2GetFavorableWeatherDays($latitude, $longitude, $apiKey)
+function sites2GetFavorableWeatherDays($latitude, $longitude, $apiKey, $apiType = null)
 {
-	global $langs;
+	global $langs, $conf;
+	
+	// Récupérer le type d'API depuis la configuration si non spécifié
+	if ($apiType === null || $apiType === 'free') {
+		if (isset($conf->global->SITES2_WEATHER_API_TYPE) && !empty($conf->global->SITES2_WEATHER_API_TYPE)) {
+			$apiType = $conf->global->SITES2_WEATHER_API_TYPE;
+		} else {
+			$apiType = 'free'; // Par défaut, API gratuite
+		}
+	}
 	
 	// Validation des paramètres d'entrée
 	if (empty($apiKey) || empty($latitude) || empty($longitude)) {
@@ -302,13 +408,24 @@ function sites2GetFavorableWeatherDays($latitude, $longitude, $apiKey)
 	$latitude = floatval($latitude);
 	$longitude = floatval($longitude);
 	
-	// URL de l'API OpenWeatherMap pour les prévisions (5 jours, données toutes les 3 heures)
-	$url = "https://api.openweathermap.org/data/2.5/forecast?lat=" . urlencode((string)$latitude) . 
-	       "&lon=" . urlencode((string)$longitude) . 
-	       "&appid=" . urlencode($apiKey) . 
-	       "&units=metric&lang=fr";
+	// Déterminer l'endpoint selon le type d'API
+	$usePaidAPI = ($apiType === 'paid');
 	
-	dol_syslog(__METHOD__.": Récupération des prévisions météo sur 15 jours", LOG_DEBUG);
+	if ($usePaidAPI) {
+		// API payante : endpoint /forecast/daily (16 jours de prévisions quotidiennes)
+		$url = "https://api.openweathermap.org/data/2.5/forecast/daily?lat=" . urlencode((string)$latitude) . 
+		       "&lon=" . urlencode((string)$longitude) . 
+		       "&appid=" . urlencode($apiKey) . 
+		       "&units=metric&lang=fr&cnt=16"; // cnt=16 pour obtenir 16 jours
+		dol_syslog(__METHOD__.": Utilisation de l'API payante (/forecast/daily) pour récupérer les prévisions météo sur 15 jours", LOG_DEBUG);
+	} else {
+		// API gratuite : endpoint /forecast (5 jours, données toutes les 3 heures)
+		$url = "https://api.openweathermap.org/data/2.5/forecast?lat=" . urlencode((string)$latitude) . 
+		       "&lon=" . urlencode((string)$longitude) . 
+		       "&appid=" . urlencode($apiKey) . 
+		       "&units=metric&lang=fr";
+		dol_syslog(__METHOD__.": Utilisation de l'API gratuite (/forecast) pour récupérer les prévisions météo (limité à 5 jours)", LOG_DEBUG);
+	}
 	
 	// Créer un contexte de flux
 	$context = stream_context_create([
@@ -329,8 +446,24 @@ function sites2GetFavorableWeatherDays($latitude, $longitude, $apiKey)
 	
 	$data = json_decode($response, true);
 	
-	if (empty($data) || $data['cod'] != '200') {
-		dol_syslog(__METHOD__.": Erreur API OpenWeatherMap", LOG_ERR);
+	// Vérifier le code de réponse (peut être '200' en string ou 200 en int)
+	// L'API payante peut ne pas retourner de champ 'cod' si tout va bien
+	if (empty($data)) {
+		dol_syslog(__METHOD__.": Réponse API OpenWeatherMap vide", LOG_ERR);
+		return false;
+	}
+	
+	// Si un code d'erreur est présent, vérifier qu'il n'est pas une erreur
+	if (isset($data['cod']) && $data['cod'] != '200' && $data['cod'] != 200) {
+		$errorMsg = isset($data['message']) ? $data['message'] : 'Erreur inconnue';
+		$errorMsg .= ' (Code: ' . $data['cod'] . ')';
+		dol_syslog(__METHOD__.": Erreur API OpenWeatherMap: " . $errorMsg, LOG_ERR);
+		return false;
+	}
+	
+	// Vérifier que les données de prévisions sont présentes
+	if (!isset($data['list']) || !is_array($data['list']) || empty($data['list'])) {
+		dol_syslog(__METHOD__.": Aucune donnée de prévision dans la réponse API", LOG_WARNING);
 		return false;
 	}
 	
@@ -339,29 +472,28 @@ function sites2GetFavorableWeatherDays($latitude, $longitude, $apiKey)
 	$weatherByDay = array();
 	
 	if (isset($data['list']) && is_array($data['list'])) {
-		foreach ($data['list'] as $forecast) {
-			if (!isset($forecast['dt']) || !isset($forecast['weather'][0])) {
-				continue;
-			}
-			
-			$forecastDate = date('Y-m-d', intval($forecast['dt']));
-			$weatherCode = isset($forecast['weather'][0]['id']) ? intval($forecast['weather'][0]['id']) : 0;
-			
-			// Codes météo OpenWeatherMap :
-			// 200-299 : Orage (thunderstorm) - DÉFAVORABLE
-			// 300-399 : Bruine (drizzle) - Acceptable mais pas idéal
-			// 500-599 : Pluie (rain) - DÉFAVORABLE
-			// 600-699 : Neige (snow) - DÉFAVORABLE
-			// 700-799 : Conditions atmosphériques (fog, etc.) - Acceptable
-			// 800 : Ciel dégagé - FAVORABLE
-			// 801-804 : Nuages - FAVORABLE (considéré comme météo clémente)
-			
-			// Vérifier si cette prévision est défavorable (orage, pluie, neige)
-			$isUnfavorable = ($weatherCode >= 200 && $weatherCode < 300) || // Orage
-			                 ($weatherCode >= 500 && $weatherCode < 600) || // Pluie
-			                 ($weatherCode >= 600 && $weatherCode < 700);    // Neige
-			
-			if (!isset($weatherByDay[$forecastDate])) {
+		if ($usePaidAPI) {
+			// API payante : les données sont déjà quotidiennes, structure différente
+			foreach ($data['list'] as $forecast) {
+				if (!isset($forecast['dt']) || !isset($forecast['weather'][0])) {
+					continue;
+				}
+				
+				$forecastDate = date('Y-m-d', intval($forecast['dt']));
+				$weatherCode = isset($forecast['weather'][0]['id']) ? intval($forecast['weather'][0]['id']) : 0;
+				
+				// Codes météo OpenWeatherMap :
+				// 200-299 : Orage (thunderstorm) - DÉFAVORABLE
+				// 500-599 : Pluie (rain) - DÉFAVORABLE
+				// 600-699 : Neige (snow) - DÉFAVORABLE
+				// 800 : Ciel dégagé - FAVORABLE
+				// 801-804 : Nuages - FAVORABLE (considéré comme météo clémente)
+				
+				// Vérifier si cette prévision est défavorable (orage, pluie, neige)
+				$isUnfavorable = ($weatherCode >= 200 && $weatherCode < 300) || // Orage
+				                 ($weatherCode >= 500 && $weatherCode < 600) || // Pluie
+				                 ($weatherCode >= 600 && $weatherCode < 700);    // Neige
+				
 				$dateLabel = '';
 				if ($forecastDate == date('Y-m-d')) {
 					$dateLabel = $langs->trans("Today");
@@ -371,44 +503,93 @@ function sites2GetFavorableWeatherDays($latitude, $longitude, $apiKey)
 					$dateLabel = date('d/m/Y', intval($forecast['dt']));
 				}
 				
+				// Structure de l'API payante : temp.min, temp.max, temp.day, etc.
 				$weatherByDay[$forecastDate] = array(
 					'date' => $forecastDate,
 					'date_label' => $dateLabel,
 					'is_favorable' => !$isUnfavorable, // Favorable si pas défavorable
 					'weather_codes' => array($weatherCode),
-					'has_unfavorable' => $isUnfavorable, // Marquer si une prévision est défavorable
-					'temp_min' => isset($forecast['main']['temp_min']) ? round(floatval($forecast['main']['temp_min'])) : 0,
-					'temp_max' => isset($forecast['main']['temp_max']) ? round(floatval($forecast['main']['temp_max'])) : 0,
-					'temp' => isset($forecast['main']['temp']) ? round(floatval($forecast['main']['temp'])) : 0,
+					'has_unfavorable' => $isUnfavorable,
+					'temp_min' => isset($forecast['temp']['min']) ? round(floatval($forecast['temp']['min'])) : 0,
+					'temp_max' => isset($forecast['temp']['max']) ? round(floatval($forecast['temp']['max'])) : 0,
+					'temp' => isset($forecast['temp']['day']) ? round(floatval($forecast['temp']['day'])) : (isset($forecast['temp']['min']) && isset($forecast['temp']['max']) ? round((floatval($forecast['temp']['min']) + floatval($forecast['temp']['max'])) / 2) : 0),
 					'description' => isset($forecast['weather'][0]['description']) ? ucfirst(htmlspecialchars($forecast['weather'][0]['description'], ENT_QUOTES, 'UTF-8')) : '',
 					'icon' => isset($forecast['weather'][0]['icon']) ? preg_replace('/[^a-z0-9d]/i', '', $forecast['weather'][0]['icon']) : '',
 				);
-			} else {
-				// Mettre à jour avec les données les plus défavorables si nécessaire
-				$weatherByDay[$forecastDate]['weather_codes'][] = $weatherCode;
-				// Si une prévision est défavorable, le jour devient défavorable
-				if ($isUnfavorable) {
-					$weatherByDay[$forecastDate]['has_unfavorable'] = true;
-					$weatherByDay[$forecastDate]['is_favorable'] = false;
+			}
+		} else {
+			// API gratuite : les données sont toutes les 3 heures, il faut les agréger par jour
+			foreach ($data['list'] as $forecast) {
+				if (!isset($forecast['dt']) || !isset($forecast['weather'][0])) {
+					continue;
 				}
-				// Mettre à jour la description et l'icône avec la dernière prévision (pour affichage)
-				if (isset($forecast['weather'][0]['description'])) {
-					$weatherByDay[$forecastDate]['description'] = ucfirst(htmlspecialchars($forecast['weather'][0]['description'], ENT_QUOTES, 'UTF-8'));
-				}
-				if (isset($forecast['weather'][0]['icon'])) {
-					$weatherByDay[$forecastDate]['icon'] = preg_replace('/[^a-z0-9d]/i', '', $forecast['weather'][0]['icon']);
-				}
-				// Mettre à jour les températures min/max
-				if (isset($forecast['main']['temp_min'])) {
-					$tempMin = round(floatval($forecast['main']['temp_min']));
-					if ($tempMin < $weatherByDay[$forecastDate]['temp_min'] || $weatherByDay[$forecastDate]['temp_min'] == 0) {
-						$weatherByDay[$forecastDate]['temp_min'] = $tempMin;
+				
+				$forecastDate = date('Y-m-d', intval($forecast['dt']));
+				$weatherCode = isset($forecast['weather'][0]['id']) ? intval($forecast['weather'][0]['id']) : 0;
+				
+				// Codes météo OpenWeatherMap :
+				// 200-299 : Orage (thunderstorm) - DÉFAVORABLE
+				// 300-399 : Bruine (drizzle) - Acceptable mais pas idéal
+				// 500-599 : Pluie (rain) - DÉFAVORABLE
+				// 600-699 : Neige (snow) - DÉFAVORABLE
+				// 700-799 : Conditions atmosphériques (fog, etc.) - Acceptable
+				// 800 : Ciel dégagé - FAVORABLE
+				// 801-804 : Nuages - FAVORABLE (considéré comme météo clémente)
+				
+				// Vérifier si cette prévision est défavorable (orage, pluie, neige)
+				$isUnfavorable = ($weatherCode >= 200 && $weatherCode < 300) || // Orage
+				                 ($weatherCode >= 500 && $weatherCode < 600) || // Pluie
+				                 ($weatherCode >= 600 && $weatherCode < 700);    // Neige
+				
+				if (!isset($weatherByDay[$forecastDate])) {
+					$dateLabel = '';
+					if ($forecastDate == date('Y-m-d')) {
+						$dateLabel = $langs->trans("Today");
+					} elseif ($forecastDate == date('Y-m-d', strtotime('+1 day'))) {
+						$dateLabel = $langs->trans("Tomorrow");
+					} else {
+						$dateLabel = date('d/m/Y', intval($forecast['dt']));
 					}
-				}
-				if (isset($forecast['main']['temp_max'])) {
-					$tempMax = round(floatval($forecast['main']['temp_max']));
-					if ($tempMax > $weatherByDay[$forecastDate]['temp_max']) {
-						$weatherByDay[$forecastDate]['temp_max'] = $tempMax;
+					
+					$weatherByDay[$forecastDate] = array(
+						'date' => $forecastDate,
+						'date_label' => $dateLabel,
+						'is_favorable' => !$isUnfavorable, // Favorable si pas défavorable
+						'weather_codes' => array($weatherCode),
+						'has_unfavorable' => $isUnfavorable, // Marquer si une prévision est défavorable
+						'temp_min' => isset($forecast['main']['temp_min']) ? round(floatval($forecast['main']['temp_min'])) : 0,
+						'temp_max' => isset($forecast['main']['temp_max']) ? round(floatval($forecast['main']['temp_max'])) : 0,
+						'temp' => isset($forecast['main']['temp']) ? round(floatval($forecast['main']['temp'])) : 0,
+						'description' => isset($forecast['weather'][0]['description']) ? ucfirst(htmlspecialchars($forecast['weather'][0]['description'], ENT_QUOTES, 'UTF-8')) : '',
+						'icon' => isset($forecast['weather'][0]['icon']) ? preg_replace('/[^a-z0-9d]/i', '', $forecast['weather'][0]['icon']) : '',
+					);
+				} else {
+					// Mettre à jour avec les données les plus défavorables si nécessaire
+					$weatherByDay[$forecastDate]['weather_codes'][] = $weatherCode;
+					// Si une prévision est défavorable, le jour devient défavorable
+					if ($isUnfavorable) {
+						$weatherByDay[$forecastDate]['has_unfavorable'] = true;
+						$weatherByDay[$forecastDate]['is_favorable'] = false;
+					}
+					// Mettre à jour la description et l'icône avec la dernière prévision (pour affichage)
+					if (isset($forecast['weather'][0]['description'])) {
+						$weatherByDay[$forecastDate]['description'] = ucfirst(htmlspecialchars($forecast['weather'][0]['description'], ENT_QUOTES, 'UTF-8'));
+					}
+					if (isset($forecast['weather'][0]['icon'])) {
+						$weatherByDay[$forecastDate]['icon'] = preg_replace('/[^a-z0-9d]/i', '', $forecast['weather'][0]['icon']);
+					}
+					// Mettre à jour les températures min/max
+					if (isset($forecast['main']['temp_min'])) {
+						$tempMin = round(floatval($forecast['main']['temp_min']));
+						if ($tempMin < $weatherByDay[$forecastDate]['temp_min'] || $weatherByDay[$forecastDate]['temp_min'] == 0) {
+							$weatherByDay[$forecastDate]['temp_min'] = $tempMin;
+						}
+					}
+					if (isset($forecast['main']['temp_max'])) {
+						$tempMax = round(floatval($forecast['main']['temp_max']));
+						if ($tempMax > $weatherByDay[$forecastDate]['temp_max']) {
+							$weatherByDay[$forecastDate]['temp_max'] = $tempMax;
+						}
 					}
 				}
 			}

@@ -397,10 +397,15 @@ MaxDistance = Distance maximale
 # Weather / Météo
 WeatherConfiguration = Configuration de la météo
 SITES2_WEATHER_ENABLED = Activer l'affichage de la météo
-SITES2_WEATHER_ENABLEDTooltip = Active l'affichage des prévisions météorologiques sur la carte du site (aujourd'hui + 5 jours)
+SITES2_WEATHER_ENABLEDTooltip = Active l'affichage des prévisions météorologiques sur la carte du site
 SITES2_OPENWEATHERMAP_API_KEY = Clé API OpenWeatherMap
 SITES2_OPENWEATHERMAP_API_KEYTooltip = Clé API requise pour récupérer les données météorologiques depuis OpenWeatherMap. Vous pouvez obtenir une clé gratuite sur openweathermap.org
 GetOpenWeatherMapAPIKey = Obtenir une clé API gratuite
+SITES2_WEATHER_API_TYPE = Type d'API OpenWeatherMap
+SITES2_WEATHER_API_TYPETooltip = Choisissez entre l'API gratuite (5 jours) ou l'API payante (16 jours). L'API payante nécessite un abonnement OpenWeatherMap.
+WeatherAPIFree = API gratuite (5 jours)
+WeatherAPIPaid = API payante (16 jours)
+WeatherAPITypeHelp = L'API gratuite fournit 5 jours de prévisions. L'API payante nécessite un abonnement et fournit jusqu'à 16 jours de prévisions.
 WeatherEnabled = Météo activée
 WeatherForecast = Prévisions météorologiques
 Today = Aujourd'hui

@@ -53,6 +53,7 @@ global $langs, $user;
 
 // Libraries
 require_once DOL_DOCUMENT_ROOT."/core/lib/admin.lib.php";
+require_once DOL_DOCUMENT_ROOT."/core/lib/security.lib.php";
 dol_include_once('/sites2/lib/sites2.lib.php');
 
 // Translations
@@ -97,7 +98,13 @@ $arrayofparameters = array(
     'SITES2_ELECTRIC_FLEET_ENABLED' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'checkbox'),
     'SITES2_ELECTRIC_FLEET_AUTONOMY' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'string'),
     'SITES2_OPENWEATHERMAP_API_KEY' => array('css'=>'minwidth300', 'enabled'=>1, 'type'=>'string'),
-    'SITES2_WEATHER_ENABLED' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'checkbox')
+    'SITES2_WEATHER_ENABLED' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'checkbox'),
+    'SITES2_WEATHER_API_TYPE' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'select', 
+        'options'=>array(
+            'free' => 'WeatherAPIFree',
+            'paid' => 'WeatherAPIPaid'
+        )
+    )
 );
 
 /*
@@ -111,11 +118,24 @@ if ((float) DOL_VERSION >= 6) {
 if ($action == 'update') {
     // Vérification du token CSRF (protection contre les attaques CSRF)
     $token = GETPOST('token', 'alpha');
-    if (empty($token) || !checkToken($token)) {
+    // Utiliser la fonction appropriée selon la version de Dolibarr
+    if (function_exists('checkToken')) {
+        $tokenValid = checkToken($token);
+    } elseif (function_exists('dol_check_token')) {
+        $tokenValid = dol_check_token($token);
+    } else {
+        // Fallback : vérification basique du token
+        $tokenValid = (!empty($token) && isset($_SESSION['newtoken']) && $token === $_SESSION['newtoken']);
+    }
+    
+    if (empty($token) || !$tokenValid) {
         setEventMessages($langs->trans("ErrorToken"), null, 'errors');
         header("Location: ".$_SERVER["PHP_SELF"]);
         exit;
     }
+    
+    // Initialiser le compteur d'erreurs
+    $error = 0;
     
     // Liste des paramètres à gérer
     $params_to_save = array(
@@ -127,7 +147,8 @@ if ($action == 'update') {
         'SITES2_ELECTRIC_FLEET_ENABLED',
         'SITES2_ELECTRIC_FLEET_AUTONOMY',
         'SITES2_OPENWEATHERMAP_API_KEY',
-        'SITES2_WEATHER_ENABLED'
+        'SITES2_WEATHER_ENABLED',
+        'SITES2_WEATHER_API_TYPE'
     );
 
     // Enregistrer chaque paramètre
@@ -287,6 +308,20 @@ print '<br><small>' . $langs->trans("SITES2_OPENWEATHERMAP_API_KEYTooltip") . '<
 print '</td><td>';
 print '<input type="text" name="SITES2_OPENWEATHERMAP_API_KEY" value="' . getDolGlobalString('SITES2_OPENWEATHERMAP_API_KEY') . '" class="flat minwidth300" placeholder="Votre clé API OpenWeatherMap" >';
 print '<br><small><a href="https://openweathermap.org/api" target="_blank">' . $langs->trans("GetOpenWeatherMapAPIKey") . '</a></small>';
+print '</td></tr>';
+
+// Type d'API OpenWeatherMap (gratuite ou payante)
+print '<tr class="oddeven"><td>';
+print $langs->trans("SITES2_WEATHER_API_TYPE");
+print '<br><small>' . $langs->trans("SITES2_WEATHER_API_TYPETooltip") . '</small>';
+print '</td><td>';
+$weather_api_type_options = array(
+    'free' => $langs->trans("WeatherAPIFree"),
+    'paid' => $langs->trans("WeatherAPIPaid")
+);
+$current_weather_api_type = !empty($conf->global->SITES2_WEATHER_API_TYPE) ? $conf->global->SITES2_WEATHER_API_TYPE : 'free';
+print $form->selectarray('SITES2_WEATHER_API_TYPE', $weather_api_type_options, $current_weather_api_type);
+print '<br><small>' . $langs->trans("WeatherAPITypeHelp") . '</small>';
 print '</td></tr>';
 
 print '</table>';
