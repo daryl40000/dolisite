@@ -1,6 +1,6 @@
 # Module Sites2 pour Dolibarr
 
-Version: 1.10
+Version: 2.3.3
 
 ## Description
 Module de gestion des sites clients des tiers pour Dolibarr. Il permet de gérer les emplacements physiques des tiers (clients, fournisseurs, etc.) tels que des entrepôts, des magasins, des bureaux, ou des résidences.

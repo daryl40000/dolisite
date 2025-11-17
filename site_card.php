@@ -245,6 +245,7 @@ if (empty($reshook)) {
 	} else {
 		// Inclure le fichier standard si ce n'est pas une action de suppression
 		include DOL_DOCUMENT_ROOT.'/core/actions_addupdatedelete.inc.php';
+		
 	}
 
 	// Actions when linking object each other
@@ -456,9 +457,9 @@ if (($id || $ref) && $action == 'edit') {
 				"</div></td>";
 			
 			// Insérer après le champ longitude s\'il existe
-			var longitudeField = document.querySelector("tr[data-field=\'longitude\']");
-			if (longitudeField) {
-				longitudeField.parentNode.insertBefore(noteElem, longitudeField.nextSibling);
+			var longitudeRow = document.querySelector("tr[data-field=\'longitude\']");
+			if (longitudeRow) {
+				longitudeRow.parentNode.insertBefore(noteElem, longitudeRow.nextSibling);
 			}
 		});
 	</script>';

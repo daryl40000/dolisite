@@ -113,13 +113,13 @@ print '</tr>';
 // Version
 print '<tr>';
 print '<td>'.$langs->trans("Version").'</td>';
-print '<td>2.3.2</td>';
+print '<td>2.3.3</td>';
 print '</tr>';
 
 // Author
 print '<tr>';
 print '<td>'.$langs->trans("Author").'</td>';
-print '<td>D.A.R.Y.L.</td>';
+print '<td>MATER Stéphane</td>';
 print '</tr>';
 
 print '</table>';

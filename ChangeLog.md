@@ -1,5 +1,18 @@
 # CHANGELOG SITES2 MODULE
 
+## 2.3.3 - 2025-01-17
+### Corrections
+- **Précision des coordonnées GPS** : Correction du problème d'arrondi des coordonnées latitude et longitude
+  - Migration des colonnes `latitude` et `longitude` de `DOUBLE` vers `DECIMAL(10,8)` et `DECIMAL(11,8)` pour garantir une précision exacte de 8 décimales
+  - Modification du type de champ dans la définition Dolibarr de `double` vers `varchar(20)` pour éviter le formatage automatique
+  - Les coordonnées GPS sont maintenant stockées et affichées exactement telles qu'elles sont saisies, sans arrondi ni formatage
+  - Préservation du signe négatif pour les coordonnées
+  - Les valeurs saisies manuellement sont conservées avec leur précision complète
+
+### Base de données
+- Migration des colonnes `latitude` et `longitude` vers `DECIMAL(10,8)` et `DECIMAL(11,8)` pour une précision exacte
+- Script de migration disponible pour les installations existantes
+
 ## 2.3.2 - 2025-11-15
 ### Corrections
 - **Migration vers One Call API 3.0** : Correction de l'utilisation de l'API payante OpenWeatherMap

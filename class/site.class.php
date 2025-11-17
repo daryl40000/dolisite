@@ -129,8 +129,8 @@ class Site extends CommonObject
 		'zip' => array('type'=>'varchar(10)', 'label'=>'Postcode', 'enabled'=>'1', 'position'=>5000, 'notnull'=>-1, 'visible'=>1, 'comment'=>"Postcode"),
 		'type' => array('type'=>'integer', 'label'=>'Type', 'enabled'=>'1', 'position'=>2000, 'notnull'=>-1, 'visible'=>1, 'index'=>1, 'arrayofkeyval'=>array('1'=>'Professionnel', '9'=>'Particulier'), 'comment'=>"Site type"),
 		'label' => array('type'=>'varchar(255)', 'label'=>'Name', 'enabled'=>'1', 'position'=>100, 'notnull'=>1, 'visible'=>3, 'index'=>1, 'searchall'=>1, 'showoncombobox'=>'1', 'comment'=>"Name of object"),
-		'latitude' => array('type'=>'double', 'label'=>'Latitude', 'enabled'=>'1', 'position'=>10000, 'notnull'=>0, 'visible'=>3,),
-		'longitude' => array('type'=>'double', 'label'=>'Longitude', 'enabled'=>'1', 'position'=>11000, 'notnull'=>0, 'visible'=>3,),
+		'latitude' => array('type'=>'varchar(20)', 'label'=>'Latitude', 'enabled'=>'1', 'position'=>10000, 'notnull'=>0, 'visible'=>3,),
+		'longitude' => array('type'=>'varchar(20)', 'label'=>'Longitude', 'enabled'=>'1', 'position'=>11000, 'notnull'=>0, 'visible'=>3,),
 		'distance_km' => array('type'=>'double', 'label'=>'DistanceKm', 'enabled'=>'1', 'position'=>12000, 'notnull'=>0, 'visible'=>3, 'comment'=>"Distance en kilomètres depuis le siège social"),
 		'travel_time' => array('type'=>'varchar(50)', 'label'=>'TravelTime', 'enabled'=>'1', 'position'=>13000, 'notnull'=>0, 'visible'=>3, 'comment'=>"Temps de trajet depuis le siège social"),
 	);
