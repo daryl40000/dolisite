@@ -62,7 +62,7 @@ class modSites2 extends DolibarrModules
 		$this->descriptionlong = "Module pour gérer les sites clients des tiers avec calcul des distances";
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated' or a version string like 'x.y.z'
-		$this->version = '2.3.3';
+		$this->version = '2.3.4';
 
 		// Key used in llx_const table to save module status enabled/disabled (where SITES2 is value of property name of module in uppercase)
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);

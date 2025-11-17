@@ -86,19 +86,268 @@ function sites2AdminPrepareHead()
 }
 
 /**
- * Récupère les données météo pour un site donné via l'API OpenWeatherMap
+ * Récupère les données météo pour un site donné via l'API Open-Meteo (gratuite, sans clé API)
  *
  * @param float $latitude Latitude du site
  * @param float $longitude Longitude du site
- * @param string $apiKey Clé API OpenWeatherMap
- * @param string $apiType Type d'API : 'free' (gratuite, 5 jours) ou 'paid' (payante, 8 jours). Par défaut 'free'
+ * @param int $forecastDays Nombre de jours de prévisions (par défaut 8, maximum 16 pour Open-Meteo)
  * @return array|false Tableau avec les données météo ou false en cas d'erreur
  */
-function sites2GetWeatherData($latitude, $longitude, $apiKey, $apiType = null)
+function sites2GetWeatherDataOpenMeteo($latitude, $longitude, $forecastDays = 8)
+{
+	global $langs;
+	
+	// Validation des paramètres d'entrée
+	if (empty($latitude) || empty($longitude)) {
+		dol_syslog(__METHOD__.": Paramètres manquants pour récupérer la météo", LOG_WARNING);
+		return false;
+	}
+	
+	// Valider que latitude et longitude sont des nombres
+	if (!is_numeric($latitude) || !is_numeric($longitude)) {
+		dol_syslog(__METHOD__.": Coordonnées invalides (latitude ou longitude non numérique)", LOG_WARNING);
+		return false;
+	}
+	
+	// Valider les plages de coordonnées
+	$latitude = floatval($latitude);
+	$longitude = floatval($longitude);
+	if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
+		dol_syslog(__METHOD__.": Coordonnées hors limites", LOG_WARNING);
+		return false;
+	}
+	
+	// Valider le nombre de jours (Open-Meteo supporte jusqu'à 16 jours)
+	$forecastDays = intval($forecastDays);
+	if ($forecastDays < 1 || $forecastDays > 16) {
+		$forecastDays = 8; // Par défaut, 8 jours
+		dol_syslog(__METHOD__.": Nombre de jours invalide, utilisation de la valeur par défaut (8 jours)", LOG_WARNING);
+	}
+	
+	// API Open-Meteo : endpoint gratuit, pas de clé API requise
+	// Prévisions jusqu'à 16 jours
+	$url = "https://api.open-meteo.com/v1/forecast?" .
+	       "latitude=" . urlencode((string)$latitude) .
+	       "&longitude=" . urlencode((string)$longitude) .
+	       "&daily=temperature_2m_max,temperature_2m_min,weathercode,windspeed_10m_max,winddirection_10m_dominant" .
+	       "&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m" .
+	       "&timezone=auto" .
+	       "&forecast_days=" . $forecastDays;
+	
+	dol_syslog(__METHOD__.": Utilisation de l'API Open-Meteo pour récupérer les données météo", LOG_DEBUG);
+	
+	// Créer un contexte de flux pour ajouter User-Agent à la requête HTTP
+	$context = stream_context_create([
+		'http' => [
+			'method' => 'GET',
+			'header' => "User-Agent: Dolibarr PHP Application\r\n",
+			'timeout' => 10
+		]
+	]);
+	
+	// Récupérer les données
+	$response = @file_get_contents($url, false, $context);
+	
+	if ($response === false) {
+		dol_syslog(__METHOD__.": Erreur lors de la récupération des données météo depuis Open-Meteo", LOG_ERR);
+		return false;
+	}
+	
+	$data = json_decode($response, true);
+	
+	// Vérifier que les données sont présentes
+	if (empty($data) || !isset($data['daily']) || !isset($data['current'])) {
+		dol_syslog(__METHOD__.": Réponse API Open-Meteo vide ou incomplète", LOG_ERR);
+		return false;
+	}
+	
+	// Organiser les données par jour
+	$weatherByDay = array();
+	
+	// Ajouter les données actuelles (aujourd'hui)
+	$today = date('Y-m-d');
+	if (isset($data['current']['time'])) {
+		$today = date('Y-m-d', strtotime($data['current']['time']));
+	}
+	
+	$currentTemp = isset($data['current']['temperature_2m']) ? round(floatval($data['current']['temperature_2m'])) : 0;
+	$currentWeatherCode = isset($data['current']['weathercode']) ? intval($data['current']['weathercode']) : 0;
+	$currentWindSpeed = isset($data['current']['windspeed_10m']) ? round(floatval($data['current']['windspeed_10m']) * 3.6, 1) : 0; // Conversion km/h
+	
+	$weatherByDay[$today] = array(
+		'date' => $today,
+		'date_label' => $langs->trans("Today"),
+		'temp_min' => $currentTemp,
+		'temp_max' => $currentTemp,
+		'temp' => $currentTemp,
+		'description' => sites2ConvertWeatherCodeToDescription($currentWeatherCode),
+		'icon' => sites2ConvertWeatherCodeToIcon($currentWeatherCode),
+		'weathercode' => $currentWeatherCode, // Stocker le code météo pour détecter la bruine légère
+		'humidity' => 0, // Open-Meteo ne fournit pas l'humidité dans l'endpoint daily
+		'wind_speed' => $currentWindSpeed,
+		'is_today' => true
+	);
+	
+	// Traiter les prévisions quotidiennes
+	if (isset($data['daily']['time']) && is_array($data['daily']['time'])) {
+		$dailyTimes = $data['daily']['time'];
+		$dailyTempMax = isset($data['daily']['temperature_2m_max']) ? $data['daily']['temperature_2m_max'] : array();
+		$dailyTempMin = isset($data['daily']['temperature_2m_min']) ? $data['daily']['temperature_2m_min'] : array();
+		$dailyWeatherCodes = isset($data['daily']['weathercode']) ? $data['daily']['weathercode'] : array();
+		$dailyWindSpeed = isset($data['daily']['windspeed_10m_max']) ? $data['daily']['windspeed_10m_max'] : array();
+		
+		for ($i = 0; $i < count($dailyTimes); $i++) {
+			$forecastDate = date('Y-m-d', strtotime($dailyTimes[$i]));
+			
+			// Ignorer aujourd'hui car on a déjà les données actuelles
+			if ($forecastDate == $today) {
+				continue;
+			}
+			
+			$tempMax = isset($dailyTempMax[$i]) ? round(floatval($dailyTempMax[$i])) : 0;
+			$tempMin = isset($dailyTempMin[$i]) ? round(floatval($dailyTempMin[$i])) : 0;
+			$temp = round(($tempMin + $tempMax) / 2);
+			$weatherCode = isset($dailyWeatherCodes[$i]) ? intval($dailyWeatherCodes[$i]) : 0;
+			$windSpeed = isset($dailyWindSpeed[$i]) ? round(floatval($dailyWindSpeed[$i]) * 3.6, 1) : 0; // Conversion km/h
+			
+			$dateLabel = '';
+			if ($forecastDate == date('Y-m-d', strtotime('+1 day'))) {
+				$dateLabel = $langs->trans("Tomorrow");
+			} else {
+				$dateLabel = date('d/m/Y', strtotime($dailyTimes[$i]));
+			}
+			
+			$weatherByDay[$forecastDate] = array(
+				'date' => $forecastDate,
+				'date_label' => $dateLabel,
+				'temp_min' => $tempMin,
+				'temp_max' => $tempMax,
+				'temp' => $temp,
+				'description' => sites2ConvertWeatherCodeToDescription($weatherCode),
+				'icon' => sites2ConvertWeatherCodeToIcon($weatherCode),
+				'weathercode' => $weatherCode, // Stocker le code météo pour détecter la bruine légère
+				'humidity' => 0, // Open-Meteo ne fournit pas l'humidité dans l'endpoint daily
+				'wind_speed' => $windSpeed,
+				'is_today' => false
+			);
+		}
+	}
+	
+	// Préparer les données actuelles pour le retour
+	$currentDataForReturn = array(
+		'temp' => $currentTemp,
+		'description' => sites2ConvertWeatherCodeToDescription($currentWeatherCode),
+		'icon' => sites2ConvertWeatherCodeToIcon($currentWeatherCode),
+		'humidity' => 0,
+		'wind_speed' => $currentWindSpeed
+	);
+	
+	return array(
+		'current' => $currentDataForReturn,
+		'forecast' => array_values($weatherByDay)
+	);
+}
+
+/**
+ * Convertit un code météo WMO (World Meteorological Organization) d'Open-Meteo en description
+ *
+ * @param int $weatherCode Code météo WMO
+ * @return string Description en français
+ */
+function sites2ConvertWeatherCodeToDescription($weatherCode)
+{
+	// Codes WMO utilisés par Open-Meteo
+	$weatherCodes = array(
+		0 => 'Ciel dégagé',
+		1 => 'Principalement dégagé',
+		2 => 'Partiellement nuageux',
+		3 => 'Couvert',
+		45 => 'Brouillard',
+		48 => 'Brouillard givrant',
+		51 => 'Bruine légère',
+		53 => 'Bruine modérée',
+		55 => 'Bruine dense',
+		56 => 'Bruine verglaçante légère',
+		57 => 'Bruine verglaçante dense',
+		61 => 'Pluie légère',
+		63 => 'Pluie modérée',
+		65 => 'Pluie forte',
+		66 => 'Pluie verglaçante légère',
+		67 => 'Pluie verglaçante forte',
+		71 => 'Chute de neige légère',
+		73 => 'Chute de neige modérée',
+		75 => 'Chute de neige forte',
+		77 => 'Grains de neige',
+		80 => 'Averses de pluie légères',
+		81 => 'Averses de pluie modérées',
+		82 => 'Averses de pluie violentes',
+		85 => 'Averses de neige légères',
+		86 => 'Averses de neige fortes',
+		95 => 'Orage',
+		96 => 'Orage avec grêle légère',
+		99 => 'Orage avec grêle forte'
+	);
+	
+	return isset($weatherCodes[$weatherCode]) ? $weatherCodes[$weatherCode] : 'Conditions inconnues';
+}
+
+/**
+ * Convertit un code météo WMO d'Open-Meteo en icône (compatible avec OpenWeatherMap)
+ *
+ * @param int $weatherCode Code météo WMO
+ * @return string Nom de l'icône
+ */
+function sites2ConvertWeatherCodeToIcon($weatherCode)
+{
+	// Mapping des codes WMO vers les icônes OpenWeatherMap pour compatibilité
+	if ($weatherCode == 0) {
+		return '01d'; // Ciel dégagé
+	} elseif ($weatherCode >= 1 && $weatherCode <= 3) {
+		return '02d'; // Partiellement nuageux
+	} elseif ($weatherCode >= 45 && $weatherCode <= 48) {
+		return '50d'; // Brouillard
+	} elseif ($weatherCode >= 51 && $weatherCode <= 67) {
+		return '09d'; // Pluie
+	} elseif ($weatherCode >= 71 && $weatherCode <= 77) {
+		return '13d'; // Neige
+	} elseif ($weatherCode >= 80 && $weatherCode <= 86) {
+		return '09d'; // Averses
+	} elseif ($weatherCode >= 95 && $weatherCode <= 99) {
+		return '11d'; // Orage
+	} else {
+		return '01d'; // Par défaut
+	}
+}
+
+/**
+ * Récupère les données météo pour un site donné via OpenWeatherMap ou Open-Meteo
+ *
+ * @param float $latitude Latitude du site
+ * @param float $longitude Longitude du site
+ * @param string $apiKey Clé API OpenWeatherMap (non utilisée pour Open-Meteo)
+ * @param string $apiType Type d'API : 'free' (gratuite, 5 jours) ou 'paid' (payante, 8 jours). Par défaut 'free'. Non utilisé pour Open-Meteo
+ * @param string $provider Fournisseur de météo : 'openweathermap' ou 'openmeteo'. Par défaut depuis la configuration
+ * @return array|false Tableau avec les données météo ou false en cas d'erreur
+ */
+function sites2GetWeatherData($latitude, $longitude, $apiKey, $apiType = null, $provider = null)
 {
 	global $langs, $conf;
 	
-	// Récupérer le type d'API depuis la configuration si non spécifié
+	// Récupérer le fournisseur depuis la configuration si non spécifié
+	if ($provider === null) {
+		if (isset($conf->global->SITES2_WEATHER_PROVIDER) && !empty($conf->global->SITES2_WEATHER_PROVIDER)) {
+			$provider = $conf->global->SITES2_WEATHER_PROVIDER;
+		} else {
+			$provider = 'openweathermap'; // Par défaut, OpenWeatherMap
+		}
+	}
+	
+	// Si Open-Meteo est sélectionné, utiliser la fonction dédiée
+	if ($provider === 'openmeteo') {
+		return sites2GetWeatherDataOpenMeteo($latitude, $longitude);
+	}
+	
+	// Récupérer le type d'API depuis la configuration si non spécifié (pour OpenWeatherMap uniquement)
 	if ($apiType === null || $apiType === 'free') {
 		if (isset($conf->global->SITES2_WEATHER_API_TYPE) && !empty($conf->global->SITES2_WEATHER_API_TYPE)) {
 			$apiType = $conf->global->SITES2_WEATHER_API_TYPE;
@@ -107,7 +356,7 @@ function sites2GetWeatherData($latitude, $longitude, $apiKey, $apiType = null)
 		}
 	}
 	
-	// Validation des paramètres d'entrée
+	// Validation des paramètres d'entrée (pour OpenWeatherMap, la clé API est requise)
 	if (empty($apiKey) || empty($latitude) || empty($longitude)) {
 		dol_syslog(__METHOD__.": Paramètres manquants pour récupérer la météo", LOG_WARNING);
 		return false;
@@ -415,19 +664,96 @@ function sites2GetWeatherData($latitude, $longitude, $apiKey, $apiType = null)
 }
 
 /**
+ * Récupère les jours favorables (sans pluie ni orage) via l'API Open-Meteo
+ *
+ * @param float $latitude Latitude du site
+ * @param float $longitude Longitude du site
+ * @param int $forecastDays Nombre de jours de prévisions (par défaut 8, 15 pour les chantiers)
+ * @return array|false Tableau avec les jours favorables ou false en cas d'erreur
+ */
+function sites2GetFavorableWeatherDaysOpenMeteo($latitude, $longitude, $forecastDays = 8)
+{
+	global $langs;
+	
+	// Récupérer les données météo via Open-Meteo avec le nombre de jours spécifié
+	$weatherData = sites2GetWeatherDataOpenMeteo($latitude, $longitude, $forecastDays);
+	
+	if ($weatherData === false || empty($weatherData['forecast'])) {
+		return false;
+	}
+	
+	// Filtrer les jours favorables (sans pluie, orage ou neige, mais bruine légère acceptée)
+	$favorableDays = array();
+	
+	foreach ($weatherData['forecast'] as $day) {
+		if (!isset($day['date']) || !isset($day['description'])) {
+			continue;
+		}
+		
+		$forecastDate = $day['date'];
+		$dayOfWeek = date('N', strtotime($forecastDate)); // 1=lundi, 7=dimanche
+		
+		// Ne garder que les jours travaillés (lundi-vendredi)
+		if ($dayOfWeek < 6) {
+			$description = strtolower($day['description']);
+			
+			// Vérifier si c'est de la bruine légère (code WMO 51) - favorable mais avec avertissement
+			$weatherCode = isset($day['weathercode']) ? intval($day['weathercode']) : 0;
+			$isLightDrizzle = ($weatherCode == 51) || (strpos($description, 'bruine légère') !== false);
+			
+			// Vérifier si le jour est défavorable (pluie, orage, neige, bruine modérée/dense)
+			$isUnfavorable = (
+				strpos($description, 'pluie') !== false ||
+				strpos($description, 'orage') !== false ||
+				strpos($description, 'neige') !== false ||
+				strpos($description, 'grêle') !== false ||
+				strpos($description, 'averse') !== false ||
+				(strpos($description, 'bruine') !== false && !$isLightDrizzle) // Bruine modérée ou dense = défavorable
+			);
+			
+			if (!$isUnfavorable) {
+				// Ajouter un indicateur pour la bruine légère
+				if ($isLightDrizzle) {
+					$day['is_light_drizzle'] = true;
+				}
+				$favorableDays[] = $day;
+			}
+		}
+	}
+	
+	return $favorableDays;
+}
+
+/**
  * Récupère les prévisions météo et filtre les jours favorables (sans pluie ni orage)
  *
  * @param float $latitude Latitude du site
  * @param float $longitude Longitude du site
- * @param string $apiKey Clé API OpenWeatherMap
- * @param string $apiType Type d'API : 'free' (gratuite, 5 jours) ou 'paid' (payante, 8 jours). Par défaut 'free'
+ * @param string $apiKey Clé API OpenWeatherMap (non utilisée pour Open-Meteo)
+ * @param string $apiType Type d'API : 'free' (gratuite, 5 jours) ou 'paid' (payante, 8 jours). Par défaut 'free'. Non utilisé pour Open-Meteo
+ * @param string $provider Fournisseur de météo : 'openweathermap' ou 'openmeteo'. Par défaut depuis la configuration
+ * @param int $forecastDays Nombre de jours de prévisions pour Open-Meteo (par défaut 8, 15 pour les chantiers)
  * @return array|false Tableau avec les jours favorables ou false en cas d'erreur
  */
-function sites2GetFavorableWeatherDays($latitude, $longitude, $apiKey, $apiType = null)
+function sites2GetFavorableWeatherDays($latitude, $longitude, $apiKey, $apiType = null, $provider = null, $forecastDays = 8)
 {
 	global $langs, $conf;
 	
-	// Récupérer le type d'API depuis la configuration si non spécifié
+	// Récupérer le fournisseur depuis la configuration si non spécifié
+	if ($provider === null) {
+		if (isset($conf->global->SITES2_WEATHER_PROVIDER) && !empty($conf->global->SITES2_WEATHER_PROVIDER)) {
+			$provider = $conf->global->SITES2_WEATHER_PROVIDER;
+		} else {
+			$provider = 'openweathermap'; // Par défaut, OpenWeatherMap
+		}
+	}
+	
+	// Si Open-Meteo est sélectionné, utiliser la fonction dédiée avec le nombre de jours spécifié
+	if ($provider === 'openmeteo') {
+		return sites2GetFavorableWeatherDaysOpenMeteo($latitude, $longitude, $forecastDays);
+	}
+	
+	// Récupérer le type d'API depuis la configuration si non spécifié (pour OpenWeatherMap uniquement)
 	if ($apiType === null || $apiType === 'free') {
 		if (isset($conf->global->SITES2_WEATHER_API_TYPE) && !empty($conf->global->SITES2_WEATHER_API_TYPE)) {
 			$apiType = $conf->global->SITES2_WEATHER_API_TYPE;
@@ -436,7 +762,7 @@ function sites2GetFavorableWeatherDays($latitude, $longitude, $apiKey, $apiType 
 		}
 	}
 	
-	// Validation des paramètres d'entrée
+	// Validation des paramètres d'entrée (pour OpenWeatherMap, la clé API est requise)
 	if (empty($apiKey) || empty($latitude) || empty($longitude)) {
 		dol_syslog(__METHOD__.": Paramètres manquants pour récupérer la météo", LOG_WARNING);
 		return false;

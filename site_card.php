@@ -836,19 +836,33 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 						print '</div>';
 					}
 				} else {
-					// Pas de date définie : afficher les jours favorables (8 jours max avec API payante, 5 jours avec API gratuite)
+					// Pas de date définie : afficher les jours favorables (15 jours avec Open-Meteo, 8 jours max avec API payante OpenWeatherMap, 5 jours avec API gratuite)
 					// Réutiliser les données météo déjà récupérées si disponibles, sinon faire un nouvel appel
+					// Pour les chantiers, on recherche sur 15 jours si Open-Meteo est utilisé
+					$weatherProvider = !empty($conf->global->SITES2_WEATHER_PROVIDER) ? $conf->global->SITES2_WEATHER_PROVIDER : 'openweathermap';
+					$forecastDaysForChantiers = ($weatherProvider === 'openmeteo') ? 15 : 8;
+					
 					if (!empty($weatherData) && !empty($weatherData['forecast'])) {
 						// Utiliser les données déjà récupérées pour éviter les incohérences
-						$favorableDays = sites2GetFavorableWeatherDaysFromData($weatherData['forecast']);
+						// Si Open-Meteo et que les données ne couvrent que 8 jours, refaire un appel pour 15 jours
+						if ($weatherProvider === 'openmeteo' && count($weatherData['forecast']) <= 8) {
+							$favorableDays = sites2GetFavorableWeatherDays($object->latitude, $object->longitude, $conf->global->SITES2_OPENWEATHERMAP_API_KEY, null, $weatherProvider, $forecastDaysForChantiers);
+						} else {
+							$favorableDays = sites2GetFavorableWeatherDaysFromData($weatherData['forecast']);
+						}
 					} else {
 						// Faire un nouvel appel API si les données ne sont pas disponibles
-						$favorableDays = sites2GetFavorableWeatherDays($object->latitude, $object->longitude, $conf->global->SITES2_OPENWEATHERMAP_API_KEY);
+						$favorableDays = sites2GetFavorableWeatherDays($object->latitude, $object->longitude, $conf->global->SITES2_OPENWEATHERMAP_API_KEY, null, $weatherProvider, $forecastDaysForChantiers);
 					}
 					
 					if (!empty($favorableDays) && count($favorableDays) > 0) {
 						print '<div style="margin-top: 10px;">';
-						print '<strong><i class="fas fa-sun"></i> ' . $langs->trans("FavorableWeatherDays") . ' : </strong>';
+						// Afficher le nombre de jours dynamiquement
+						$daysText = ($weatherProvider === 'openmeteo' && $forecastDaysForChantiers == 15) ? '15' : '8';
+						// Remplacer le nombre de jours dans la traduction si nécessaire
+						$favorableText = $langs->trans("FavorableWeatherDays");
+						$favorableText = preg_replace('/\d+\s+prochains\s+jours/', $daysText . ' prochains jours', $favorableText);
+						print '<strong><i class="fas fa-sun"></i> ' . $favorableText . ' : </strong>';
 						print '<div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px;">';
 						
 						foreach ($favorableDays as $day) {
@@ -861,7 +875,12 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 								$date_label = $langs->trans("Tomorrow");
 							}
 							
-							print '<div style="flex: 0 0 auto; min-width: 80px; padding: 5px; background-color: #e8f5e9; border-radius: 3px; text-align: center; border: 1px solid #4caf50;">';
+							// Déterminer la couleur selon si c'est de la bruine légère
+							$isLightDrizzle = isset($day['is_light_drizzle']) && $day['is_light_drizzle'];
+							$bgColor = $isLightDrizzle ? '#fff9c4' : '#e8f5e9'; // Jaune clair pour bruine légère, vert clair pour favorable
+							$borderColor = $isLightDrizzle ? '#f9a825' : '#4caf50'; // Jaune/orange pour bruine légère, vert pour favorable
+							
+							print '<div style="flex: 0 0 auto; min-width: 80px; padding: 5px; background-color: ' . $bgColor . '; border-radius: 3px; text-align: center; border: 1px solid ' . $borderColor . ';">';
 							print '<div style="font-weight: bold; font-size: 0.75em; margin-bottom: 3px;">' . htmlspecialchars($date_label, ENT_QUOTES, 'UTF-8') . '</div>';
 							print '<div style="margin-bottom: 3px;">';
 							
@@ -895,7 +914,12 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 						print '</div>';
 					} else {
 						print '<div style="margin-top: 5px; font-size: 0.9em; color: #999;">';
-						print '<i class="fas fa-info-circle"></i> ' . $langs->trans("NoFavorableWeatherDays");
+						// Afficher le nombre de jours dynamiquement
+						$daysText = ($weatherProvider === 'openmeteo' && $forecastDaysForChantiers == 15) ? '15' : '8';
+						// Remplacer le nombre de jours dans la traduction
+						$noFavorableText = $langs->trans("NoFavorableWeatherDays");
+						$noFavorableText = preg_replace('/\d+/', $daysText, $noFavorableText);
+						print '<i class="fas fa-info-circle"></i> ' . $noFavorableText;
 						print '</div>';
 					}
 				}

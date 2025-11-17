@@ -1,6 +1,28 @@
 # CHANGELOG SITES2 MODULE
 
+## 2.3.4 - 2025-01-17
+### Améliorations
+- **Affichage dynamique du nombre de jours** : Le texte affiche maintenant correctement "15 prochains jours" lorsque Open-Meteo est utilisé avec 15 jours pour les chantiers
+  - Correction du double affichage du nombre de jours dans le texte
+  - Remplacement automatique du nombre de jours dans les traductions selon le fournisseur et le contexte
+
+- **Bruine légère acceptée comme favorable** : Les jours avec bruine légère sont maintenant considérés comme favorables mais avec un indicateur visuel
+  - Affichage en jaune (fond jaune clair, bordure jaune/orange) pour les jours avec bruine légère
+  - Détection précise via le code météo WMO (code 51)
+  - La bruine modérée et dense reste défavorable
+  - Stockage du code météo dans les données pour permettre la détection précise
+
 ## 2.3.3 - 2025-01-17
+### Ajouts
+- **Support de l'API Open-Meteo** : Ajout de la possibilité d'utiliser l'API Open-Meteo comme alternative à OpenWeatherMap
+  - Nouveau paramètre de configuration `SITES2_WEATHER_PROVIDER` pour choisir entre OpenWeatherMap et Open-Meteo
+  - Open-Meteo est gratuit et ne nécessite pas de clé API
+  - Prévisions météorologiques jusqu'à 8 jours avec Open-Meteo (affichage standard)
+  - **Prévisions étendues pour les chantiers** : Recherche de jours favorables sur 15 jours pour les chantiers à venir lorsque Open-Meteo est utilisé
+  - Conversion automatique des codes météo WMO (World Meteorological Organization) en descriptions et icônes
+  - Interface de configuration mise à jour avec sélection du fournisseur
+  - Les champs de configuration OpenWeatherMap sont masqués automatiquement lorsque Open-Meteo est sélectionné
+
 ### Corrections
 - **Précision des coordonnées GPS** : Correction du problème d'arrondi des coordonnées latitude et longitude
   - Migration des colonnes `latitude` et `longitude` de `DOUBLE` vers `DECIMAL(10,8)` et `DECIMAL(11,8)` pour garantir une précision exacte de 8 décimales

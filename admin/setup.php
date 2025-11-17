@@ -97,6 +97,12 @@ $arrayofparameters = array(
     ),
     'SITES2_ELECTRIC_FLEET_ENABLED' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'checkbox'),
     'SITES2_ELECTRIC_FLEET_AUTONOMY' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'string'),
+    'SITES2_WEATHER_PROVIDER' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'select', 
+        'options'=>array(
+            'openweathermap' => 'WeatherProviderOpenWeatherMap',
+            'openmeteo' => 'WeatherProviderOpenMeteo'
+        )
+    ),
     'SITES2_OPENWEATHERMAP_API_KEY' => array('css'=>'minwidth300', 'enabled'=>1, 'type'=>'string'),
     'SITES2_WEATHER_ENABLED' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'checkbox'),
     'SITES2_WEATHER_API_TYPE' => array('css'=>'minwidth200', 'enabled'=>1, 'type'=>'select', 
@@ -146,6 +152,7 @@ if ($action == 'update') {
         'SITES2_DISTANCE_CALCULATION_MODE',
         'SITES2_ELECTRIC_FLEET_ENABLED',
         'SITES2_ELECTRIC_FLEET_AUTONOMY',
+        'SITES2_WEATHER_PROVIDER',
         'SITES2_OPENWEATHERMAP_API_KEY',
         'SITES2_WEATHER_ENABLED',
         'SITES2_WEATHER_API_TYPE'
@@ -301,8 +308,22 @@ print '</td><td>';
 print '<input type="checkbox" name="SITES2_WEATHER_ENABLED" value="1" ' . (!empty($conf->global->SITES2_WEATHER_ENABLED) ? 'checked' : '') . '>';
 print '</td></tr>';
 
-// Clé API OpenWeatherMap
+// Fournisseur de météo
 print '<tr class="oddeven"><td>';
+print $langs->trans("SITES2_WEATHER_PROVIDER");
+print '<br><small>' . $langs->trans("SITES2_WEATHER_PROVIDERTooltip") . '</small>';
+print '</td><td>';
+$weather_provider_options = array(
+    'openweathermap' => $langs->trans("WeatherProviderOpenWeatherMap"),
+    'openmeteo' => $langs->trans("WeatherProviderOpenMeteo")
+);
+$current_weather_provider = !empty($conf->global->SITES2_WEATHER_PROVIDER) ? $conf->global->SITES2_WEATHER_PROVIDER : 'openweathermap';
+print $form->selectarray('SITES2_WEATHER_PROVIDER', $weather_provider_options, $current_weather_provider);
+print '<br><small>' . $langs->trans("WeatherProviderHelp") . '</small>';
+print '</td></tr>';
+
+// Clé API OpenWeatherMap (affiché uniquement si OpenWeatherMap est sélectionné)
+print '<tr class="oddeven" id="openweathermap_config"><td>';
 print $langs->trans("SITES2_OPENWEATHERMAP_API_KEY");
 print '<br><small>' . $langs->trans("SITES2_OPENWEATHERMAP_API_KEYTooltip") . '</small>';
 print '</td><td>';
@@ -310,8 +331,8 @@ print '<input type="text" name="SITES2_OPENWEATHERMAP_API_KEY" value="' . getDol
 print '<br><small><a href="https://openweathermap.org/api" target="_blank">' . $langs->trans("GetOpenWeatherMapAPIKey") . '</a></small>';
 print '</td></tr>';
 
-// Type d'API OpenWeatherMap (gratuite ou payante)
-print '<tr class="oddeven"><td>';
+// Type d'API OpenWeatherMap (gratuite ou payante) - affiché uniquement si OpenWeatherMap est sélectionné
+print '<tr class="oddeven" id="openweathermap_api_type"><td>';
 print $langs->trans("SITES2_WEATHER_API_TYPE");
 print '<br><small>' . $langs->trans("SITES2_WEATHER_API_TYPETooltip") . '</small>';
 print '</td><td>';
@@ -323,6 +344,32 @@ $current_weather_api_type = !empty($conf->global->SITES2_WEATHER_API_TYPE) ? $co
 print $form->selectarray('SITES2_WEATHER_API_TYPE', $weather_api_type_options, $current_weather_api_type);
 print '<br><small>' . $langs->trans("WeatherAPITypeHelp") . '</small>';
 print '</td></tr>';
+
+// Script JavaScript pour afficher/masquer les options selon le fournisseur
+print '<script type="text/javascript">
+document.addEventListener("DOMContentLoaded", function() {
+    var providerSelect = document.querySelector("select[name=\'SITES2_WEATHER_PROVIDER\']");
+    var openweathermapConfig = document.getElementById("openweathermap_config");
+    var openweathermapApiType = document.getElementById("openweathermap_api_type");
+    
+    function toggleOpenWeatherMapFields() {
+        if (providerSelect && openweathermapConfig && openweathermapApiType) {
+            if (providerSelect.value === "openweathermap") {
+                openweathermapConfig.style.display = "";
+                openweathermapApiType.style.display = "";
+            } else {
+                openweathermapConfig.style.display = "none";
+                openweathermapApiType.style.display = "none";
+            }
+        }
+    }
+    
+    if (providerSelect) {
+        providerSelect.addEventListener("change", toggleOpenWeatherMapFields);
+        toggleOpenWeatherMapFields(); // Appel initial
+    }
+});
+</script>';
 
 print '</table>';
 

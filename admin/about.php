@@ -113,7 +113,7 @@ print '</tr>';
 // Version
 print '<tr>';
 print '<td>'.$langs->trans("Version").'</td>';
-print '<td>2.3.3</td>';
+print '<td>2.3.4</td>';
 print '</tr>';
 
 // Author
