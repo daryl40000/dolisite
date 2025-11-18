@@ -501,4 +501,13 @@ AssignedWorkSite = Assigned work site
 NoAssignedWorkSite = No assigned work site
 InfoNoAssignedWorkSite = Assigned work sites are work sites linked to a site and a proposal but without a defined start date
 MapOfScheduledWorkSites = Map of scheduled work sites
-Legend = Legend 
+Legend = Legend
+
+# Automatic third party address retrieval
+GetThirdPartyAddress = Get third party address
+PleaseSelectThirdParty = Please first select a third party
+Loading = Loading
+AddressRetrievedSuccessfully = Address retrieved successfully
+ErrorRetrievingAddress = Error retrieving address
+Error = Error
+UnknownError = Unknown error 

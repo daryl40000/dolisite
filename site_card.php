@@ -414,6 +414,137 @@ if ($action == 'create') {
 
 	print '</form>';
 
+	// Ajouter un bouton pour récupérer automatiquement l'adresse du tiers
+	print '<script type="text/javascript">
+	document.addEventListener("DOMContentLoaded", function() {
+		// Fonction pour trouver le champ fk_soc et ajouter le bouton
+		function addGetAddressButton() {
+			// Chercher le champ fk_soc dans le formulaire (peut être un select ou un input)
+			var fkSocField = null;
+			var fkSocRow = null;
+			
+			// Chercher dans les formulaires de création et d\'édition
+			var forms = document.querySelectorAll("form");
+			forms.forEach(function(form) {
+				// Chercher le select ou input pour fk_soc
+				var select = form.querySelector("select[name=\'fk_soc\']");
+				var input = form.querySelector("input[name=\'fk_soc\']");
+				
+				if (select) {
+					fkSocField = select;
+					fkSocRow = select.closest("tr");
+				} else if (input) {
+					fkSocField = input;
+					fkSocRow = input.closest("tr");
+				}
+			});
+			
+			if (fkSocField && fkSocRow) {
+				// Vérifier si le bouton n\'existe pas déjà
+				if (fkSocRow.querySelector(".get-societe-address-btn")) {
+					return; // Le bouton existe déjà
+				}
+				
+				// Créer le bouton
+				var button = document.createElement("button");
+				button.type = "button";
+				button.className = "button get-societe-address-btn";
+				button.innerHTML = "<i class=\'fas fa-map-marker-alt\'></i> ' . dol_escape_js($langs->trans("GetThirdPartyAddress")) . '";
+				button.style.marginLeft = "10px";
+				button.style.marginTop = "5px";
+				button.style.verticalAlign = "middle";
+				
+				// Ajouter l\'événement click
+				button.addEventListener("click", function() {
+					var fkSocValue = null;
+					
+					// Récupérer la valeur selon le type de champ
+					if (fkSocField.tagName === "SELECT") {
+						fkSocValue = fkSocField.value;
+					} else if (fkSocField.tagName === "INPUT") {
+						fkSocValue = fkSocField.value;
+					}
+					
+					if (!fkSocValue || fkSocValue === "" || fkSocValue === "0") {
+						alert("' . dol_escape_js($langs->trans("PleaseSelectThirdParty")) . '");
+						return;
+					}
+					
+					// Désactiver le bouton pendant la requête
+					button.disabled = true;
+					button.innerHTML = "<i class=\'fas fa-spinner fa-spin\'></i> ' . dol_escape_js($langs->trans("Loading")) . '...";
+					
+					// Faire la requête AJAX
+					var xhr = new XMLHttpRequest();
+					xhr.open("GET", "' . dol_buildpath('/sites2/ajax_get_societe_address.php', 1) . '?fk_soc=" + encodeURIComponent(fkSocValue), true);
+					xhr.onreadystatechange = function() {
+						if (xhr.readyState === 4) {
+							button.disabled = false;
+							button.innerHTML = "<i class=\'fas fa-map-marker-alt\'></i> ' . dol_escape_js($langs->trans("GetThirdPartyAddress")) . '";
+							
+							if (xhr.status === 200) {
+								try {
+									var response = JSON.parse(xhr.responseText);
+									
+									if (response.success) {
+										// Remplir les champs address, zip et town
+										var addressField = document.querySelector("textarea[name=\'address\']") || document.querySelector("input[name=\'address\']");
+										var zipField = document.querySelector("input[name=\'zip\']");
+										var townField = document.querySelector("input[name=\'town\']");
+										
+										if (addressField && response.address) {
+											addressField.value = response.address;
+										}
+										if (zipField && response.zip) {
+											zipField.value = response.zip;
+										}
+										if (townField && response.town) {
+											townField.value = response.town;
+										}
+										
+										// Message de succès
+										console.log("' . dol_escape_js($langs->trans("AddressRetrievedSuccessfully")) . '");
+									} else {
+										alert("' . dol_escape_js($langs->trans("Error")) . ': " + (response.error || "' . dol_escape_js($langs->trans("UnknownError")) . '"));
+									}
+								} catch (e) {
+									console.error("Erreur lors du parsing de la réponse:", e);
+									alert("' . dol_escape_js($langs->trans("ErrorRetrievingAddress")) . '");
+								}
+							} else {
+								alert("' . dol_escape_js($langs->trans("ErrorRetrievingAddress")) . '");
+							}
+						}
+					};
+					xhr.send();
+				});
+				
+				// Ajouter le bouton dans la cellule du champ fk_soc
+				var td = fkSocRow.querySelector("td:last-child");
+				if (td) {
+					// Assurer que la cellule utilise un layout flex pour bien positionner le bouton
+					if (td.style.display !== "flex") {
+						var originalDisplay = window.getComputedStyle(td).display;
+						td.style.display = "flex";
+						td.style.alignItems = "center";
+						td.style.gap = "10px";
+					}
+					
+					// Ajouter le bouton à côté du champ
+					td.appendChild(button);
+				}
+			}
+		}
+		
+		// Appeler la fonction immédiatement
+		addGetAddressButton();
+		
+		// Réessayer après un court délai au cas où les champs ne seraient pas encore chargés
+		setTimeout(addGetAddressButton, 500);
+		setTimeout(addGetAddressButton, 1000);
+	});
+	</script>';
+
 	//dol_set_focus('input[name="ref"]');
 }
 
@@ -476,6 +607,137 @@ if (($id || $ref) && $action == 'edit') {
 	print '</div>';
 
 	print '</form>';
+
+	// Ajouter un bouton pour récupérer automatiquement l'adresse du tiers (pour le formulaire d'édition)
+	print '<script type="text/javascript">
+	document.addEventListener("DOMContentLoaded", function() {
+		// Fonction pour trouver le champ fk_soc et ajouter le bouton
+		function addGetAddressButton() {
+			// Chercher le champ fk_soc dans le formulaire (peut être un select ou un input)
+			var fkSocField = null;
+			var fkSocRow = null;
+			
+			// Chercher dans les formulaires de création et d\'édition
+			var forms = document.querySelectorAll("form");
+			forms.forEach(function(form) {
+				// Chercher le select ou input pour fk_soc
+				var select = form.querySelector("select[name=\'fk_soc\']");
+				var input = form.querySelector("input[name=\'fk_soc\']");
+				
+				if (select) {
+					fkSocField = select;
+					fkSocRow = select.closest("tr");
+				} else if (input) {
+					fkSocField = input;
+					fkSocRow = input.closest("tr");
+				}
+			});
+			
+			if (fkSocField && fkSocRow) {
+				// Vérifier si le bouton n\'existe pas déjà
+				if (fkSocRow.querySelector(".get-societe-address-btn")) {
+					return; // Le bouton existe déjà
+				}
+				
+				// Créer le bouton
+				var button = document.createElement("button");
+				button.type = "button";
+				button.className = "button get-societe-address-btn";
+				button.innerHTML = "<i class=\'fas fa-map-marker-alt\'></i> ' . dol_escape_js($langs->trans("GetThirdPartyAddress")) . '";
+				button.style.marginLeft = "10px";
+				button.style.marginTop = "5px";
+				button.style.verticalAlign = "middle";
+				
+				// Ajouter l\'événement click
+				button.addEventListener("click", function() {
+					var fkSocValue = null;
+					
+					// Récupérer la valeur selon le type de champ
+					if (fkSocField.tagName === "SELECT") {
+						fkSocValue = fkSocField.value;
+					} else if (fkSocField.tagName === "INPUT") {
+						fkSocValue = fkSocField.value;
+					}
+					
+					if (!fkSocValue || fkSocValue === "" || fkSocValue === "0") {
+						alert("' . dol_escape_js($langs->trans("PleaseSelectThirdParty")) . '");
+						return;
+					}
+					
+					// Désactiver le bouton pendant la requête
+					button.disabled = true;
+					button.innerHTML = "<i class=\'fas fa-spinner fa-spin\'></i> ' . dol_escape_js($langs->trans("Loading")) . '...";
+					
+					// Faire la requête AJAX
+					var xhr = new XMLHttpRequest();
+					xhr.open("GET", "' . dol_buildpath('/sites2/ajax_get_societe_address.php', 1) . '?fk_soc=" + encodeURIComponent(fkSocValue), true);
+					xhr.onreadystatechange = function() {
+						if (xhr.readyState === 4) {
+							button.disabled = false;
+							button.innerHTML = "<i class=\'fas fa-map-marker-alt\'></i> ' . dol_escape_js($langs->trans("GetThirdPartyAddress")) . '";
+							
+							if (xhr.status === 200) {
+								try {
+									var response = JSON.parse(xhr.responseText);
+									
+									if (response.success) {
+										// Remplir les champs address, zip et town
+										var addressField = document.querySelector("textarea[name=\'address\']") || document.querySelector("input[name=\'address\']");
+										var zipField = document.querySelector("input[name=\'zip\']");
+										var townField = document.querySelector("input[name=\'town\']");
+										
+										if (addressField && response.address) {
+											addressField.value = response.address;
+										}
+										if (zipField && response.zip) {
+											zipField.value = response.zip;
+										}
+										if (townField && response.town) {
+											townField.value = response.town;
+										}
+										
+										// Message de succès
+										console.log("' . dol_escape_js($langs->trans("AddressRetrievedSuccessfully")) . '");
+									} else {
+										alert("' . dol_escape_js($langs->trans("Error")) . ': " + (response.error || "' . dol_escape_js($langs->trans("UnknownError")) . '"));
+									}
+								} catch (e) {
+									console.error("Erreur lors du parsing de la réponse:", e);
+									alert("' . dol_escape_js($langs->trans("ErrorRetrievingAddress")) . '");
+								}
+							} else {
+								alert("' . dol_escape_js($langs->trans("ErrorRetrievingAddress")) . '");
+							}
+						}
+					};
+					xhr.send();
+				});
+				
+				// Ajouter le bouton dans la cellule du champ fk_soc
+				var td = fkSocRow.querySelector("td:last-child");
+				if (td) {
+					// Assurer que la cellule utilise un layout flex pour bien positionner le bouton
+					if (td.style.display !== "flex") {
+						var originalDisplay = window.getComputedStyle(td).display;
+						td.style.display = "flex";
+						td.style.alignItems = "center";
+						td.style.gap = "10px";
+					}
+					
+					// Ajouter le bouton à côté du champ
+					td.appendChild(button);
+				}
+			}
+		}
+		
+		// Appeler la fonction immédiatement
+		addGetAddressButton();
+		
+		// Réessayer après un court délai au cas où les champs ne seraient pas encore chargés
+		setTimeout(addGetAddressButton, 500);
+		setTimeout(addGetAddressButton, 1000);
+	});
+	</script>';
 }
 
 // Part to show record
@@ -696,7 +958,12 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 	
 	// Récupérer les données météo si activé (pour afficher la météo des jours de chantier et les jours favorables)
 	// On les récupère avant la boucle pour pouvoir les réutiliser
-	if ($weatherEnabled && !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY) && !empty($object->latitude) && !empty($object->longitude)) {
+	// Vérifier d'abord le provider : Open-Meteo ne nécessite pas de clé API
+	$weatherProvider = !empty($conf->global->SITES2_WEATHER_PROVIDER) ? $conf->global->SITES2_WEATHER_PROVIDER : 'openweathermap';
+	$needsApiKey = ($weatherProvider === 'openweathermap');
+	$hasApiKey = !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY);
+	
+	if ($weatherEnabled && !empty($object->latitude) && !empty($object->longitude) && (!$needsApiKey || $hasApiKey)) {
 		$weatherData = sites2GetWeatherData($object->latitude, $object->longitude, $conf->global->SITES2_OPENWEATHERMAP_API_KEY);
 	}
 	
@@ -766,7 +1033,8 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 			print '</div>';
 			
 			// Météo pour les jours de chantier (uniquement si extérieur)
-			if ($location_type == 1 && $weatherEnabled && !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY) && !empty($object->latitude) && !empty($object->longitude)) {
+			// Vérifier d'abord le provider : Open-Meteo ne nécessite pas de clé API
+			if ($location_type == 1 && $weatherEnabled && !empty($object->latitude) && !empty($object->longitude) && (!$needsApiKey || $hasApiKey)) {
 				// Si une date est définie, afficher la météo pour cette date
 				if (!empty($obj_chantier->date_debut)) {
 					if (!empty($weatherData) && !empty($weatherData['forecast'])) {
@@ -962,7 +1230,13 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 
 	// Récupérer les données météo si activé (avant l'affichage de la carte) - pour la carte
 	// Si les données météo n'ont pas été récupérées pour les chantiers, les récupérer maintenant
-	if (!isset($weatherData) && $weatherEnabled && !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY) && !empty($object->latitude) && !empty($object->longitude)) {
+	// Vérifier d'abord le provider : Open-Meteo ne nécessite pas de clé API
+	if (!isset($weatherProvider)) {
+		$weatherProvider = !empty($conf->global->SITES2_WEATHER_PROVIDER) ? $conf->global->SITES2_WEATHER_PROVIDER : 'openweathermap';
+		$needsApiKey = ($weatherProvider === 'openweathermap');
+		$hasApiKey = !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY);
+	}
+	if (!isset($weatherData) && $weatherEnabled && !empty($object->latitude) && !empty($object->longitude) && (!$needsApiKey || $hasApiKey)) {
 		$weatherData = sites2GetWeatherData($object->latitude, $object->longitude, $conf->global->SITES2_OPENWEATHERMAP_API_KEY);
 	}
 
@@ -970,7 +1244,13 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 		print '<div class="fichehalfright">';
 		print '    <h3>Carte';
 		// Afficher l'icône météo si activée
-		if ($weatherEnabled && !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY)) {
+		// Vérifier d'abord le provider : Open-Meteo ne nécessite pas de clé API
+		if (!isset($weatherProvider)) {
+			$weatherProvider = !empty($conf->global->SITES2_WEATHER_PROVIDER) ? $conf->global->SITES2_WEATHER_PROVIDER : 'openweathermap';
+			$needsApiKey = ($weatherProvider === 'openweathermap');
+			$hasApiKey = !empty($conf->global->SITES2_OPENWEATHERMAP_API_KEY);
+		}
+		if ($weatherEnabled && (!$needsApiKey || $hasApiKey)) {
 			print ' <span class="fas fa-cloud-sun" title="' . $langs->trans("WeatherEnabled") . '"></span>';
 		}
 		print '</h3>';

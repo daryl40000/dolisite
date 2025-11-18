@@ -267,6 +267,14 @@ class Site extends CommonObject
 			}
 		}
 
+		// Convertir les chaînes vides en NULL pour latitude et longitude (nécessaire pour DECIMAL)
+		if ($this->latitude === '' || $this->latitude === null || trim($this->latitude) === '') {
+			$this->latitude = null;
+		}
+		if ($this->longitude === '' || $this->longitude === null || trim($this->longitude) === '') {
+			$this->longitude = null;
+		}
+		
 		// Création en base de données
 		$resultcreate = $this->createCommon($user, $notrigger || $this->supprimer_evenements_agenda);
 		if ($resultcreate > 0) {
@@ -294,62 +302,45 @@ class Site extends CommonObject
 		}
 		
 		$address = urlencode($this->address . ' ' . $this->zip . ' ' . $this->town);
-		$provider = !empty($conf->global->SITES2_MAP_PROVIDER) ? $conf->global->SITES2_MAP_PROVIDER : 'openstreetmap';
 		
 		dol_syslog(__METHOD__.": Tentative de géocodage pour ".$this->address.", ".$this->zip.", ".$this->town, LOG_DEBUG);
 		
-		if ($provider == 'googlemaps' && !empty($conf->global->SITES2_GOOGLE_MAPS_API_KEY)) {
-			// Utilisation de l'API Google Maps Geocoding
-			$url = "https://maps.googleapis.com/maps/api/geocode/json?address={$address}&key=".$conf->global->SITES2_GOOGLE_MAPS_API_KEY;
-			dol_syslog(__METHOD__.": Utilisation de Google Maps, URL: ".$url, LOG_DEBUG);
-			
-			$context = stream_context_create([
-				'http' => [
-					'method' => 'GET',
-					'header' => "User-Agent: Dolibarr PHP Application\r\n"
-				]
-			]);
+		// Toujours utiliser OpenStreetMap pour le géocodage (plus fiable et gratuit)
+		// Le choix Google Maps / OpenStreetMap reste disponible uniquement pour l'affichage de la carte
+		$url = "https://nominatim.openstreetmap.org/search?q={$address}&format=jsonv2";
+		dol_syslog(__METHOD__.": Utilisation d'OpenStreetMap pour le géocodage, URL: ".$url, LOG_DEBUG);
+		
+		// Ajouter la clé API si configurée
+		if (!empty($conf->global->SITES2_OPENSTREETMAP_API_KEY)) {
+			$url .= "&key=".$conf->global->SITES2_OPENSTREETMAP_API_KEY;
+		}
+		
+		// Create a stream context to add User-Agent to the HTTP request
+		$context = stream_context_create([
+			'http' => [
+				'method' => 'GET',
+				'header' => "User-Agent: Dolibarr PHP Application\r\n",
+				'timeout' => 10
+			]
+		]);
 
-			$response = file_get_contents($url, false, $context);
-			$data = json_decode($response);
+		$response = @file_get_contents($url, false, $context);
+		
+		if ($response === false) {
+			$error = error_get_last();
+			dol_syslog(__METHOD__.": Erreur de connexion à l'API OpenStreetMap - ".($error ? $error['message'] : 'Erreur inconnue'), LOG_ERR);
+			return false;
+		}
+		
+		$data = json_decode($response);
 
-			if (!empty($data) && $data->status == 'OK' && !empty($data->results[0])) {
-				$this->latitude = $data->results[0]->geometry->location->lat;
-				$this->longitude = $data->results[0]->geometry->location->lng;
-				dol_syslog(__METHOD__.": Géocodage réussi avec Google Maps - Lat: ".$this->latitude.", Lng: ".$this->longitude, LOG_DEBUG);
-				return true;
-			} else {
-				dol_syslog(__METHOD__.": Échec du géocodage avec Google Maps - ".(isset($data) ? $data->status : 'Pas de réponse'), LOG_WARNING);
-			}
+		if (!empty($data) && count($data) > 0) {
+			$this->latitude = $data[0]->lat;
+			$this->longitude = $data[0]->lon;
+			dol_syslog(__METHOD__.": Géocodage réussi avec OpenStreetMap - Lat: ".$this->latitude.", Lng: ".$this->longitude, LOG_DEBUG);
+			return true;
 		} else {
-			// Utilisation de l'API OpenStreetMap (Nominatim)
-			$url = "https://nominatim.openstreetmap.org/search?q={$address}&format=jsonv2";
-			dol_syslog(__METHOD__.": Utilisation d'OpenStreetMap, URL: ".$url, LOG_DEBUG);
-			
-			// Ajouter la clé API si configurée
-			if (!empty($conf->global->SITES2_OPENSTREETMAP_API_KEY)) {
-				$url .= "&key=".$conf->global->SITES2_OPENSTREETMAP_API_KEY;
-			}
-			
-			// Create a stream context to add User-Agent to the HTTP request
-			$context = stream_context_create([
-				'http' => [
-					'method' => 'GET',
-					'header' => "User-Agent: Dolibarr PHP Application\r\n"
-				]
-			]);
-
-			$response = file_get_contents($url, false, $context);
-			$data = json_decode($response);
-
-			if (!empty($data) && count($data) > 0) {
-				$this->latitude = $data[0]->lat;
-				$this->longitude = $data[0]->lon;
-				dol_syslog(__METHOD__.": Géocodage réussi avec OpenStreetMap - Lat: ".$this->latitude.", Lng: ".$this->longitude, LOG_DEBUG);
-				return true;
-			} else {
-				dol_syslog(__METHOD__.": Échec du géocodage avec OpenStreetMap - Pas de résultats", LOG_WARNING);
-			}
+			dol_syslog(__METHOD__.": Échec du géocodage avec OpenStreetMap - Pas de résultats", LOG_WARNING);
 		}
 		
 		dol_syslog(__METHOD__.": Échec général du géocodage", LOG_ERR);
@@ -393,52 +384,38 @@ class Site extends CommonObject
 				$address = urlencode($conf->global->SITES2_REFERENCE_AGENCY_ADDRESS . ' ' . 
 									 $conf->global->SITES2_REFERENCE_AGENCY_ZIP . ' ' . 
 									 $conf->global->SITES2_REFERENCE_AGENCY_TOWN);
-				$provider = !empty($conf->global->SITES2_MAP_PROVIDER) ? $conf->global->SITES2_MAP_PROVIDER : 'openstreetmap';
 				
-				if ($provider == 'googlemaps' && !empty($conf->global->SITES2_GOOGLE_MAPS_API_KEY)) {
-					// Utilisation de l'API Google Maps Geocoding
-					$url = "https://maps.googleapis.com/maps/api/geocode/json?address={$address}&key=".$conf->global->SITES2_GOOGLE_MAPS_API_KEY;
-					
-					$context = stream_context_create([
-						'http' => [
-							'method' => 'GET',
-							'header' => "User-Agent: Dolibarr PHP Application\r\n"
-						]
-					]);
+				// Toujours utiliser OpenStreetMap pour le géocodage (plus fiable et gratuit)
+				// Le choix Google Maps / OpenStreetMap reste disponible uniquement pour l'affichage de la carte
+				$url = "https://nominatim.openstreetmap.org/search?q={$address}&format=jsonv2";
+				
+				// Ajouter la clé API si configurée
+				if (!empty($conf->global->SITES2_OPENSTREETMAP_API_KEY)) {
+					$url .= "&key=".$conf->global->SITES2_OPENSTREETMAP_API_KEY;
+				}
+				
+				$context = stream_context_create([
+					'http' => [
+						'method' => 'GET',
+						'header' => "User-Agent: Dolibarr PHP Application\r\n",
+						'timeout' => 10
+					]
+				]);
 
-					$response = file_get_contents($url, false, $context);
+				$response = @file_get_contents($url, false, $context);
+				
+				if ($response !== false) {
 					$data = json_decode($response);
-
-					if (!empty($data) && $data->status == 'OK' && !empty($data->results[0])) {
-						$ref_lat = $data->results[0]->geometry->location->lat;
-						$ref_lng = $data->results[0]->geometry->location->lng;
-						dol_syslog(__METHOD__.": Coordonnées obtenues via Google Maps: lat=$ref_lat, lng=$ref_lng", LOG_DEBUG);
-					}
-				} else {
-					// Utilisation de l'API OpenStreetMap (Nominatim)
-					$url = "https://nominatim.openstreetmap.org/search?q={$address}&format=jsonv2";
 					
-					// Ajouter la clé API si configurée
-					if (!empty($conf->global->SITES2_OPENSTREETMAP_API_KEY)) {
-						$url .= "&key=".$conf->global->SITES2_OPENSTREETMAP_API_KEY;
-					}
-					
-					// Create a stream context to add User-Agent to the HTTP request
-					$context = stream_context_create([
-						'http' => [
-							'method' => 'GET',
-							'header' => "User-Agent: Dolibarr PHP Application\r\n"
-						]
-					]);
-
-					$response = file_get_contents($url, false, $context);
-					$data = json_decode($response);
-
-					if(!empty($data) && isset($data[0])) {
+					if (!empty($data) && count($data) > 0) {
 						$ref_lat = $data[0]->lat;
 						$ref_lng = $data[0]->lon;
 						dol_syslog(__METHOD__.": Coordonnées obtenues via OpenStreetMap: lat=$ref_lat, lng=$ref_lng", LOG_DEBUG);
+					} else {
+						dol_syslog(__METHOD__.": Échec du géocodage de l'agence via OpenStreetMap - Pas de résultats", LOG_WARNING);
 					}
+				} else {
+					dol_syslog(__METHOD__.": Erreur de connexion à l'API OpenStreetMap pour l'agence de référence", LOG_WARNING);
 				}
 			} else {
 				dol_syslog(__METHOD__.": Adresse de l'agence de référence incomplète ou non configurée", LOG_WARNING);
@@ -677,6 +654,14 @@ class Site extends CommonObject
 			}
 		}
 
+		// Convertir les chaînes vides en NULL pour latitude et longitude (nécessaire pour DECIMAL)
+		if ($this->latitude === '' || $this->latitude === null || trim($this->latitude) === '') {
+			$this->latitude = null;
+		}
+		if ($this->longitude === '' || $this->longitude === null || trim($this->longitude) === '') {
+			$this->longitude = null;
+		}
+		
 		// Sauvegarde en base de données
 		$result = $this->updateCommon($user, $notrigger || $this->supprimer_evenements_agenda);
 		if ($result > 0) {

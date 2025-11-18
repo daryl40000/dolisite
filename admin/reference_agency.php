@@ -113,89 +113,47 @@ if ($action == 'geocode') {
     
     if (!empty($address) && !empty($zip) && !empty($town)) {
         $address_string = urlencode($address . ' ' . $zip . ' ' . $town . ' ' . $country);
-        $provider = !empty($conf->global->SITES2_MAP_PROVIDER) ? $conf->global->SITES2_MAP_PROVIDER : 'openstreetmap';
         
-        if ($provider == 'googlemaps' && !empty($conf->global->SITES2_GOOGLE_MAPS_API_KEY)) {
-            // Utilisation de l'API Google Maps Geocoding
-            $url = "https://maps.googleapis.com/maps/api/geocode/json?address={$address_string}&key=".$conf->global->SITES2_GOOGLE_MAPS_API_KEY;
-            
-            $context = stream_context_create([
-                'http' => [
-                    'method' => 'GET',
-                    'header' => "User-Agent: Dolibarr PHP Application\r\n"
-                ]
-            ]);
+        // Toujours utiliser OpenStreetMap pour le géocodage (plus fiable et gratuit)
+        // Le choix Google Maps / OpenStreetMap reste disponible uniquement pour l'affichage de la carte
+        $url = "https://nominatim.openstreetmap.org/search?q={$address_string}&format=jsonv2";
+        
+        // Ajouter la clé API si configurée
+        if (!empty($conf->global->SITES2_OPENSTREETMAP_API_KEY)) {
+            $url .= "&key=".$conf->global->SITES2_OPENSTREETMAP_API_KEY;
+        }
+        
+        // Create a stream context to add User-Agent to the HTTP request
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => "User-Agent: Dolibarr PHP Application\r\n",
+                'timeout' => 10
+            ]
+        ]);
 
-            $response = @file_get_contents($url, false, $context);
-            if ($response === false) {
-                // Erreur lors de la connexion à l'API
-                setEventMessages($langs->trans("ReferenceAgencyGeocodeErrorConnection", 'Google Maps'), null, 'errors');
-            } else {
-                $data = json_decode($response);
-
-                if (!empty($data) && $data->status == 'OK' && !empty($data->results[0])) {
-                    $latitude = $data->results[0]->geometry->location->lat;
-                    $longitude = $data->results[0]->geometry->location->lng;
-                    
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_LATITUDE', $latitude, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_LONGITUDE', $longitude, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_ADDRESS', $address, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_ZIP', $zip, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_TOWN', $town, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_COUNTRY', $country, 'chaine', 0, '', $conf->entity);
-                    
-                    setEventMessages($langs->trans("ReferenceAgencyGeocoded"), null, 'mesgs');
-                } else {
-                    $error_msg = $langs->trans("ReferenceAgencyGeocodeError");
-                    if (!empty($data) && !empty($data->status) && $data->status != 'OK') {
-                        $error_msg .= ' (Status: ' . $data->status . ')';
-                        if (!empty($data->error_message)) {
-                            $error_msg .= ' - ' . $data->error_message;
-                        }
-                    }
-                    setEventMessages($error_msg, null, 'errors');
-                }
-            }
+        $response = @file_get_contents($url, false, $context);
+        if ($response === false) {
+            // Erreur lors de la connexion à l'API
+            setEventMessages($langs->trans("ReferenceAgencyGeocodeErrorConnection", 'OpenStreetMap'), null, 'errors');
         } else {
-            // Utilisation de l'API OpenStreetMap (Nominatim)
-            $url = "https://nominatim.openstreetmap.org/search?q={$address_string}&format=jsonv2";
-            
-            // Ajouter la clé API si configurée
-            if (!empty($conf->global->SITES2_OPENSTREETMAP_API_KEY)) {
-                $url .= "&key=".$conf->global->SITES2_OPENSTREETMAP_API_KEY;
-            }
-            
-            // Create a stream context to add User-Agent to the HTTP request
-            $context = stream_context_create([
-                'http' => [
-                    'method' => 'GET',
-                    'header' => "User-Agent: Dolibarr PHP Application\r\n"
-                ]
-            ]);
+            $data = json_decode($response);
 
-            $response = @file_get_contents($url, false, $context);
-            if ($response === false) {
-                // Erreur lors de la connexion à l'API
-                setEventMessages($langs->trans("ReferenceAgencyGeocodeErrorConnection", 'OpenStreetMap'), null, 'errors');
+            if (!empty($data) && count($data) > 0) {
+                $latitude = $data[0]->lat;
+                $longitude = $data[0]->lon;
+                
+                dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_LATITUDE', $latitude, 'chaine', 0, '', $conf->entity);
+                dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_LONGITUDE', $longitude, 'chaine', 0, '', $conf->entity);
+                dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_ADDRESS', $address, 'chaine', 0, '', $conf->entity);
+                dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_ZIP', $zip, 'chaine', 0, '', $conf->entity);
+                dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_TOWN', $town, 'chaine', 0, '', $conf->entity);
+                dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_COUNTRY', $country, 'chaine', 0, '', $conf->entity);
+                
+                setEventMessages($langs->trans("ReferenceAgencyGeocoded"), null, 'mesgs');
             } else {
-                $data = json_decode($response);
-
-                if (!empty($data) && count($data) > 0) {
-                    $latitude = $data[0]->lat;
-                    $longitude = $data[0]->lon;
-                    
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_LATITUDE', $latitude, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_LONGITUDE', $longitude, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_ADDRESS', $address, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_ZIP', $zip, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_TOWN', $town, 'chaine', 0, '', $conf->entity);
-                    dolibarr_set_const($db, 'SITES2_REFERENCE_AGENCY_COUNTRY', $country, 'chaine', 0, '', $conf->entity);
-                    
-                    setEventMessages($langs->trans("ReferenceAgencyGeocoded"), null, 'mesgs');
-                } else {
-                    // Pas de résultats trouvés
-                    setEventMessages($langs->trans("ReferenceAgencyGeocodeErrorNoResults", $address, $zip, $town, $country), null, 'errors');
-                }
+                // Pas de résultats trouvés
+                setEventMessages($langs->trans("ReferenceAgencyGeocodeErrorNoResults", $address, $zip, $town, $country), null, 'errors');
             }
         }
     } else {

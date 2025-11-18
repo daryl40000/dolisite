@@ -62,7 +62,7 @@ class modSites2 extends DolibarrModules
 		$this->descriptionlong = "Module pour gérer les sites clients des tiers avec calcul des distances";
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated' or a version string like 'x.y.z'
-		$this->version = '2.3.4';
+		$this->version = '2.3.6';
 
 		// Key used in llx_const table to save module status enabled/disabled (where SITES2 is value of property name of module in uppercase)
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
@@ -518,6 +518,27 @@ class modSites2 extends DolibarrModules
 				tms timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 				fk_object integer NOT NULL,
 				import_key varchar(14) DEFAULT NULL
+			) ENGINE=innodb;",
+			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."sites2_chantier(
+				rowid integer AUTO_INCREMENT PRIMARY KEY NOT NULL,
+				fk_site integer NOT NULL,
+				fk_propal integer DEFAULT NULL COMMENT 'Référence au devis (propal)',
+				date_debut date DEFAULT NULL COMMENT 'Date de début théorique du chantier',
+				date_fin date DEFAULT NULL COMMENT 'Date de fin théorique du chantier',
+				note_public text COMMENT 'Note publique sur le chantier',
+				note_private text COMMENT 'Note privée sur le chantier',
+				status integer DEFAULT 0 COMMENT 'Statut du chantier (0=draft, 1=validated, etc.)',
+				location_type integer DEFAULT 1 COMMENT 'Type de localisation (1=extérieur, 0=intérieur)',
+				date_creation datetime NOT NULL,
+				tms timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				fk_user_creat integer NOT NULL,
+				fk_user_modif integer DEFAULT NULL,
+				import_key varchar(14) DEFAULT NULL,
+				entity integer DEFAULT 1 NOT NULL,
+				INDEX idx_fk_site (fk_site),
+				INDEX idx_fk_propal (fk_propal),
+				INDEX idx_date_debut (date_debut),
+				FOREIGN KEY (fk_site) REFERENCES ".MAIN_DB_PREFIX."sites2_site(rowid) ON DELETE CASCADE
 			) ENGINE=innodb;"
 		);
 

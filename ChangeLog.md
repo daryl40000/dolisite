@@ -1,6 +1,67 @@
 # CHANGELOG SITES2 MODULE
 
-## 2.3.4 - 2025-01-17
+## 2.3.6 - 2025-11-18
+### Corrections
+- **Correction de l'affichage de la carte des chantiers** : Correction du problème où la carte des chantiers programmés s'affichait en gris
+  - Ajout d'un centre et d'un zoom par défaut lors de l'initialisation de la carte
+  - Vérification du chargement de Leaflet avant l'initialisation
+  - Gestion d'erreur si Leaflet n'est pas chargé
+  - La carte s'affiche maintenant correctement même sans marqueurs
+
+- **Correction de la logique de séparation des chantiers** : Correction du problème où les chantiers avec dates apparaissaient dans les deux catégories
+  - Les chantiers avec une date de début (même sans date de fin) sont maintenant uniquement dans "chantiers à venir"
+  - Les chantiers sans date de début sont uniquement dans "chantiers affectés"
+  - Condition SQL corrigée : `date_debut IS NULL` pour les chantiers affectés au lieu de `(date_debut IS NULL OR date_fin IS NULL)`
+
+- **Filtrage de la météo par dates du chantier** : La météo n'est maintenant affichée que pour les jours prévus du chantier
+  - Si le chantier a une date de début et une date de fin : météo uniquement pour les jours entre ces deux dates (inclus)
+  - Si le chantier a seulement une date de début : météo uniquement pour ce jour
+  - Les jours météo en dehors de la période du chantier ne sont plus affichés
+
+### Améliorations
+- **Agence de référence sur la carte des chantiers** : Ajout de l'agence de référence sur la carte des chantiers programmés
+  - Marqueur vert pour l'agence de référence avec popup affichant le nom
+  - Ajustement automatique du zoom pour inclure tous les chantiers et l'agence de référence
+  - Ajout de l'agence de référence dans la légende de la carte
+  - La carte s'affiche même s'il n'y a pas de chantiers, si l'agence de référence est configurée
+
+## 2.3.5 - 2025-11-18
+### Corrections
+- **Géocodage forcé sur OpenStreetMap** : Le géocodage utilise maintenant toujours OpenStreetMap, indépendamment du fournisseur de cartes configuré
+  - Le choix Google Maps / OpenStreetMap reste disponible uniquement pour l'affichage des cartes
+  - Amélioration de la fiabilité du géocodage (OpenStreetMap fonctionne sans clé API et sans restrictions)
+  - Correction des problèmes de géocodage avec Google Maps (erreurs d'autorisation API)
+
+- **Correction du bug Open-Meteo** : Correction du problème où Open-Meteo ne fonctionnait pas lors de la première utilisation sur un nouveau système
+  - Vérification du fournisseur météo avant de vérifier la présence de la clé API OpenWeatherMap
+  - Open-Meteo fonctionne maintenant dès la première utilisation sans nécessiter de passer par OpenWeatherMap
+
+- **Correction des coordonnées GPS vides** : Conversion automatique des chaînes vides en NULL pour les colonnes DECIMAL
+  - Évite l'erreur SQL "Incorrect decimal value: '' for column latitude"
+  - Les coordonnées vides sont maintenant correctement gérées lors de la création et de la mise à jour
+
+- **Création de la table chantier** : Ajout de la création automatique de la table `llx_sites2_chantier` lors de l'installation du module
+  - La table est maintenant créée automatiquement lors de l'activation du module
+  - Plus besoin d'exécuter manuellement le script SQL
+
+### Améliorations
+- **Récupération automatique de l'adresse du tiers** : Ajout d'un bouton pour récupérer automatiquement l'adresse, le code postal et la ville du tiers sélectionné
+  - Bouton "Récupérer l'adresse du tiers" à côté du champ "Tiers" dans les formulaires de création et d'édition
+  - Remplissage automatique des champs adresse, code postal et ville depuis les informations du tiers
+  - Gain de temps et réduction des erreurs de saisie
+  - Endpoint AJAX dédié pour la récupération des informations
+
+- **Gestion d'erreurs améliorée pour Google Maps** : Amélioration de la gestion des erreurs de l'API Google Maps
+  - Gestion complète de tous les codes de statut de l'API (OK, ZERO_RESULTS, OVER_QUERY_LIMIT, REQUEST_DENIED, INVALID_REQUEST)
+  - Messages d'erreur détaillés dans les logs pour faciliter le diagnostic
+  - Timeout de 10 secondes pour éviter les blocages
+
+- **Purge automatique des chantiers** : Suppression automatique des chantiers dont le devis n'est plus signé
+  - Purge automatique à chaque chargement de la page "Chantiers à venir"
+  - Filtrage des requêtes pour n'afficher que les chantiers avec devis signés
+  - Maintien de la cohérence des données
+
+## 2.3.4 - 2025-11-17
 ### Améliorations
 - **Affichage dynamique du nombre de jours** : Le texte affiche maintenant correctement "15 prochains jours" lorsque Open-Meteo est utilisé avec 15 jours pour les chantiers
   - Correction du double affichage du nombre de jours dans le texte
@@ -12,7 +73,7 @@
   - La bruine modérée et dense reste défavorable
   - Stockage du code météo dans les données pour permettre la détection précise
 
-## 2.3.3 - 2025-01-17
+## 2.3.3 - 2025-11-17
 ### Ajouts
 - **Support de l'API Open-Meteo** : Ajout de la possibilité d'utiliser l'API Open-Meteo comme alternative à OpenWeatherMap
   - Nouveau paramètre de configuration `SITES2_WEATHER_PROVIDER` pour choisir entre OpenWeatherMap et Open-Meteo

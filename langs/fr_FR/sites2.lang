@@ -481,4 +481,13 @@ AssignedWorkSite = Chantier affecté
 NoAssignedWorkSite = Aucun chantier affecté
 InfoNoAssignedWorkSite = Les chantiers affectés sont des chantiers liés à un site et un devis mais sans date de début définie
 MapOfScheduledWorkSites = Carte des chantiers programmés
-Legend = Légende 
+Legend = Légende
+
+# Récupération automatique de l'adresse du tiers
+GetThirdPartyAddress = Récupérer l'adresse du tiers
+PleaseSelectThirdParty = Veuillez d'abord sélectionner un tiers
+Loading = Chargement
+AddressRetrievedSuccessfully = Adresse récupérée avec succès
+ErrorRetrievingAddress = Erreur lors de la récupération de l'adresse
+Error = Erreur
+UnknownError = Erreur inconnue 
